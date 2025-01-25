@@ -1,0 +1,68 @@
+
+# Data Processing and Mapping
+
+```{r}
+source("setup.R")
+```
+
+## Read in rasters
+
+From L: Drive
+```{r}
+# read in raw files from L drive:
+hfi_1999 <- terra::rast("L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data\\1999_int16.tif")
+
+
+hfi_2023 <- terra::rast("L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data\\2023_int16.tif")
+
+hfi_change <- terra::rast("L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data\\2023m1999_int16.tif")
+
+```
+
+Local data/ folder (on Mac)
+```{r}
+hfi_1999 <- terra::rast("data/1999_int16.tif")
+```
+
+
+## Projection
+
+Project for Leaflet
+```{r}
+# this will take a while...1 hour on Mac
+system.time(
+hfi_1999_projected <- terra::project(hfi_1999, "EPSG:3857")
+)
+
+writeRaster(hfi_1999_projected, "data/hfi_1999_leaflet.tif")
+
+```
+
+
+## Tile Creation
+
+Had to run this in terminal after installing gdal (Mac)
+```{bash}
+gdal_translate -of VRT -ot Byte -scale /Users/caitlinmothes/Desktop/HFI_shiny/data/1999_int16.tif temp.vrt
+
+gdal2tiles temp.vrt
+```
+
+Files default saved in Users/caitlinmothes, moved to data/ folder. Folder is 3GB in size though for zoom level 9...
+
+
+## Leaflet Mapping
+
+Tiles Josh hosted on AGOL
+```{r}
+# ArcPro Map Tiles ---------
+
+url <- "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_1999_3857/MapServer/tile/{z}/{y}/{x}"
+
+
+leaflet() %>% 
+  addTiles() %>% 
+  addTiles(url,
+           options = tileOptions(maxNativeZoom = 9))
+```
+
