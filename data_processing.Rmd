@@ -56,13 +56,16 @@ Files default saved in Users/caitlinmothes, moved to data/ folder. Folder is 3GB
 Tiles Josh hosted on AGOL
 ```{r}
 # ArcPro Map Tiles ---------
+# 
+# url <- "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_1999_3857/MapServer/tile/{z}/{y}/{x}"
 
-url <- "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_1999_3857/MapServer/tile/{z}/{y}/{x}"
+# new URL
+url <- "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_1999_3857_12levels/MapServer/tile/{z}/{y}/{x}"
 
 
 leaflet() %>% 
   addTiles() %>% 
   addTiles(url,
-           options = tileOptions(maxNativeZoom = 9))
+           options = tileOptions(maxNativeZoom = 12))
 ```
 
