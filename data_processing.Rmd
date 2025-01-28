@@ -39,6 +39,21 @@ writeRaster(hfi_1999_projected, "data/hfi_1999_leaflet.tif")
 ```
 
 
+## Aggregate to ~ 1km, project and save
+```{r}
+# aggregate
+hfi_change_1km <- terra::aggregate(hfi_change, fact = 3, fun = mean)
+
+# project; the output resolution is 464km....
+hfi_change_1km_leaflet <- terra::project(hfi_change_1km, "EPSG:3857")
+
+
+# save
+writeRaster(hfi_change_1km_leaflet, "L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data/2023_1999_900m_leaflet.tif")
+```
+
+
+
 ## Tile Creation
 
 Had to run this in terminal after installing gdal (Mac)
