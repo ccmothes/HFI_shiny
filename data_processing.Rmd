@@ -77,6 +77,8 @@ Tiles Josh hosted on AGOL
 # new URL
 url <- "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_1999_3857_12levels/MapServer/tile/{z}/{y}/{x}"
 
+url2 <- "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_Change_2023_1999_1k/MapServer/tile/{z}/{y}/{x}"
+
 
 leaflet() %>% 
   addTiles() %>% 
