@@ -3,6 +3,11 @@ library(leaflet)
 library(bslib)
 library(dplyr)
 library(ggplot2)
+library(plotly)
+
+# read in vector layers
+ipcc <- read_sf("data/IPCC_regions/referenceRegions.shp")
+countries <- read_sf("data/countries.shp")
 
 # Generate sample data
 set.seed(123)
@@ -40,10 +45,14 @@ ui <- page_sidebar(
                 value = min(years),
                 step = 24,
                 sep = ""),
+    
+    selectInput("country", "Select Country", 
+                choices = unique(countries$name), 
+                selected = character(0), multiple = FALSE, selectize = TRUE), 
     card(
       full_screen = TRUE,
       card_header("Global Mean Annual Change"),
-      plotOutput("timeSeries", height = "300px")
+      plotlyOutput("timeSeries", height = "300px")
     ),
     width = "400px"
   ),
@@ -68,7 +77,12 @@ server <- function(input, output, session) {
   output$map <- renderLeaflet({
     leaflet() %>%
       addProviderTiles(providers$CartoDB.DarkMatter) %>%
-      setView(lng = -50, lat = 20, zoom = 3)  # Changed to show global view
+      setView(lng = -50, lat = 20, zoom = 3) %>% 
+      addPolygons(data = countries, color = "#00bc8c", weight = 1, fillOpacity = 0, popup = ~name, group = "Countries") %>% 
+      addLayersControl(
+        overlayGroups = c("Countries", "Borders"),  # Specify the layers to toggle
+        options = layersControlOptions(collapsed = FALSE)  # Control options
+      )
   })
   
   # change tile url based on selected layer
@@ -91,33 +105,62 @@ server <- function(input, output, session) {
       )
   })
   
-  # Time series output
-  output$timeSeries <- renderPlot({
-    locations %>%
+  
+  output$timeSeries <- renderPlotly({
+    # Data preparation
+    avg_data <- locations %>%
       group_by(year) %>%
-      summarize(avg_value = mean(value)) %>%
-      ggplot(aes(x = year, y = avg_value)) +
-      geom_line(color = "#00bc8c", size = 1) +
-      geom_point(color = "#00bc8c", size = 3) +
-      geom_point(data = . %>% filter(year == input$year),
-                 color = "#FF7070", size = 4) +
-      theme_dark() +
-      labs(x = "Year",
-           y = "Average Value",
-           title = "Time Series of Average Values") +
-      theme(
-        plot.title = element_text(hjust = 0.5),
-        plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
-        plot.background = element_rect(fill = "#222222", color = NA),
-        panel.background = element_rect(fill = "#2c2c2c", color = NA),
-        panel.border = element_blank(),
-        panel.grid.major = element_line(color = "#3c3c3c"),
-        panel.grid.minor = element_line(color = "#3c3c3c"),
-        text = element_text(color = "#FFFFFF"),
-        axis.text = element_text(color = "#FFFFFF"),
-        axis.line = element_blank()
+      summarize(avg_value = mean(value))
+    
+    # Create Plotly figure
+    plot_ly(avg_data, x = ~year, y = ~avg_value, type = "scatter", mode = "lines+markers",
+            line = list(color = "#00bc8c", width = 2, shape = "linear"),
+            marker = list(color = "#00bc8c", size = 6),
+            name = "Global Mean",legendgroup = "avg", showlegend = FALSE) %>%
+      # Highlight selected year
+      add_trace(data = avg_data %>% filter(year == input$year),
+                x = ~year, y = ~avg_value, type = "scatter", mode = "markers",
+                marker = list(color = "#FF7070", size = 8), 
+                name = "Global Mean",legendgroup = "avg", showlegend = TRUE) %>%
+      layout(
+        #title = list(text = "Time Series of Average Values", x = 0.5),
+        xaxis = list(title = "Year", color = "#FFFFFF"),
+        yaxis = list(title = "Average HFI", color = "#FFFFFF"),
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        font = list(color = "#FFFFFF"),
+        margin = list(l = 40, r = 40, t = 60, b = 40),
+        legend = list(orientation = "h", x = 0.5, y = -0.2, xanchor = "center") 
       )
-  }, bg = "#222222")
+  })
+
+  # Time series output
+  # output$timeSeries <- renderPlot({
+  #   locations %>%
+  #     group_by(year) %>%
+  #     summarize(avg_value = mean(value)) %>%
+  #     ggplot(aes(x = year, y = avg_value)) +
+  #     geom_line(color = "#00bc8c", size = 1) +
+  #     geom_point(color = "#00bc8c", size = 3) +
+  #     geom_point(data = . %>% filter(year == input$year),
+  #                color = "#FF7070", size = 4) +
+  #     theme_dark() +
+  #     labs(x = "Year",
+  #          y = "Average Value",
+  #          title = "Time Series of Average Values") +
+  #     theme(
+  #       plot.title = element_text(hjust = 0.5),
+  #       plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
+  #       plot.background = element_rect(fill = "#222222", color = NA),
+  #       panel.background = element_rect(fill = "#2c2c2c", color = NA),
+  #       panel.border = element_blank(),
+  #       panel.grid.major = element_line(color = "#3c3c3c"),
+  #       panel.grid.minor = element_line(color = "#3c3c3c"),
+  #       text = element_text(color = "#FFFFFF"),
+  #       axis.text = element_text(color = "#FFFFFF"),
+  #       axis.line = element_blank()
+  #     )
+  # }, bg = "#222222")
   
 }
 

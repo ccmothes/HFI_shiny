@@ -86,3 +86,76 @@ leaflet() %>%
            options = tileOptions(maxNativeZoom = 12))
 ```
 
+
+# Read in Vector data
+
+```{r}
+# Load global country borders
+
+world <- ne_countries(returnclass = "sv", scale = "large")
+
+
+# save to data/ folder
+writeVector(world, "data/countries.shp", overwrite = TRUE)
+
+
+# Import IPCC A5 Reference Regions
+
+# Download the ZIP file
+download.file("https://www.ipcc-data.org/documents/ar5/regions/referenceRegions.zip", "data/IPCC_regions.zip", mode = "wb") 
+
+# Unzip the file
+unzip("data/IPCC_regions.zip", exdir = "data/IPCC_regions")
+
+# remove the .zip file
+file.remove("data/IPCC_regions.zip")
+
+
+
+```
+
+Read the files in
+```{r}
+countries <- terra::vect("data/countries.shp")
+
+ipcc <- terra::vect("data/IPCC_regions/referenceRegions.shp")
+```
+
+
+Add to map
+```{r}
+
+countries_sf <- st_as_sf(countries)
+  
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(data = countries_sf, color = "blue", fillColor = "red", weight = 1, fillOpacity = 0, popup = ~name, group = "Countries") %>% 
+  addLayersControl(
+    overlayGroups = c("Countries", "Borders"),  # Specify the layers to toggle
+    options = layersControlOptions(collapsed = FALSE)  # Control options
+  )
+```
+
+
+# Calculate zonal stats
+```{r}
+
+# Create a blank raster matching the resolution/extent of r
+poly_raster <- rast(hfi_1999)
+
+
+# Rasterize the polygon vector based on IDs
+ipcc_poly <- rasterize(ipcc, poly_raster, field = "NAME")
+
+country_poly <- rasterize(countries, poly_raster, field = "name")
+
+# 1.5 minutes
+system.time(
+  zonal_ipcc <- terra::zonal(hfi_1999, ipcc_poly, fun = "mean", na.rm = TRUE)
+)
+
+system.time(
+  zonal_country <- terra::zonal(hfi_1999, country_poly, fun = "mean", na.rm = TRUE)
+)
+```
+
