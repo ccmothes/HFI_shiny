@@ -18,7 +18,11 @@ packages <- c(
   'terra',
   'tidyverse',
   'leaflet',
-  'tigris'
+  'tigris',
+  'rnaturalearth',
+  'rnaturalearthdata',
+  'rnaturalearthhires',
+  'geodata'
 )
 
 packages <- c(packages)
