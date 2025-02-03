@@ -18,13 +18,25 @@ packages <- c(
   'terra',
   'tidyverse',
   'leaflet',
-  'tigris'
+  'shiny',
+  'shinyWidgets',
+  'bslib',
+  'plotly',
+  'tigris',
+  'rnaturalearth',
+  'rnaturalearthdata',
+  'geodata',
+  'remotes'
 )
 
 packages <- c(packages)
 
 
 packageLoad(packages)
+
+if (!"rnaturalearthhires" %in% installed.packages()) {
+  remotes::install_github("ropensci/rnaturalearthhires")
+}
 
 
 # source all functions --------------------------
