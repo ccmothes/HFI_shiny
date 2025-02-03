@@ -138,6 +138,7 @@ leaflet() %>%
 
 
 # Calculate zonal stats
+
 ```{r}
 
 # Create a blank raster matching the resolution/extent of r
@@ -157,5 +158,14 @@ system.time(
 system.time(
   zonal_country <- terra::zonal(hfi_1999, country_poly, fun = "mean", na.rm = TRUE)
 )
+```
+
+Calculate over all years
+```{r}
+
+zonal_ipcc_all <- map(c(hfi_1999, hfi_2023), ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
+
+zonal_country_all <- map(c(hfi_1999, hfi_2023), ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
+
 ```
 
