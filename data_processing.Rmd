@@ -163,10 +163,37 @@ system.time(
 Calculate over all years
 ```{r}
 
-zonal_ipcc_all <- map(c(hfi_1999, hfi_2023), ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
+# Create a blank raster matching the resolution/extent of r
+poly_raster <- rast(hfi_1999)
 
-zonal_country_all <- map(c(hfi_1999, hfi_2023), ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
 
+# Rasterize the polygon vector based on IDs
+ipcc_poly <- rasterize(ipcc, poly_raster, field = "NAME")
+
+country_poly <- rasterize(countries, poly_raster, field = "name")
+
+
+zonal_ipcc_all <- map(list(hfi_1999, hfi_2023), ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
+
+zonal_country_all <- map(list(hfi_1999, hfi_2023), ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
+
+```
+
+Add to polygons and save
+```{r}
+# countries
+country_all <- reduce(zonal_country_all, left_join, by = "name")
+
+countries <- merge(countries, country_all, by = "name")
+
+writeVector(countries, "app/data/countries.shp", overwrite = TRUE)
+
+# ipcc regions
+ipcc_all <- reduce(zonal_ipcc_all, left_join, by = "NAME")
+
+ipcc <- merge(ipcc, ipcc_all, by = "NAME")
+
+writeVector(ipcc, "app/data/IPCC_regions/referenceRegions.shp", overwrite = TRUE)
 ```
 
 
