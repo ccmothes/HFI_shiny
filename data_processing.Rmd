@@ -186,14 +186,14 @@ country_all <- reduce(zonal_country_all, left_join, by = "name")
 
 countries <- merge(countries, country_all, by = "name")
 
-writeVector(countries, "app/data/countries.shp", overwrite = TRUE)
+writeVector(countries, "app/app_data/countries.shp", overwrite = TRUE)
 
 # ipcc regions
 ipcc_all <- reduce(zonal_ipcc_all, left_join, by = "NAME")
 
 ipcc <- merge(ipcc, ipcc_all, by = "NAME")
 
-writeVector(ipcc, "app/data/IPCC_regions/referenceRegions.shp", overwrite = TRUE)
+writeVector(ipcc, "app/app_data/IPCC_regions/referenceRegions.shp", overwrite = TRUE)
 ```
 
 
