@@ -169,3 +169,9 @@ zonal_country_all <- map(c(hfi_1999, hfi_2023), ~ terra::zonal(.x, country_poly,
 
 ```
 
+
+Remove water pixels
+```{r}
+mask_1999 <- terra::mask(hfi_1999, countries)
+```
+
