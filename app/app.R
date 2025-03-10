@@ -70,7 +70,8 @@ ui <- page_sidebar(
                       placeholder = 'Please select an option below',
                       onInitialize = I('function() { this.setValue(""); }')
                     )
-                  )
+                  ),
+                  plotlyOutput("country_histogram", height = "600px")
                 )
               )
             ),     
@@ -228,6 +229,39 @@ server <- function(input, output, session) {
     
   })
   
+  
+  # country histogram --------------------------
+  output$country_histogram <- renderPlotly({
+    
+    # Calculate histogram bins for all countries
+    hist_data <- reactive({
+      countries %>%
+        st_drop_geometry() %>%
+        group_by(name) %>%
+        summarise(Value = mean(get(paste0(
+          input$year, "_int16"
+        ))))
+    })
+    
+    # Create the plot
+    p <- plot_ly(
+      data = hist_data(),
+      x = ~Value,
+      y = ~reorder(name, -Value),
+      type = "bar",
+      color = ~ifelse(name == input$country, "Highlighted", "All Countries"),
+      colors = c("All Countries" = "lightgray", "Highlighted" = "red")
+    ) %>%
+      layout(
+        #title = "Value Distribution by Country",
+        xaxis = list(title = "Mean HFI"),
+        yaxis = list(title = ""),
+        barmode = "stack"
+      )
+    
+    return(p)
+    
+  })
   
   
   
