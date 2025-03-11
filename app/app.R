@@ -72,6 +72,20 @@ ui <- page_sidebar(
                     )
                   ),
                   plotlyOutput("country_histogram", height = "600px")
+                ),
+                conditionalPanel(
+                  "input.level == 'IPCC Region'",
+                  materialSwitch("add_ipcc", "Add Layer to Map:", value = FALSE),
+                  selectizeInput(
+                    "ipcc",
+                    "Select IPCC Region",
+                    choices = unique(ipcc$NAME),
+                    options = list(
+                      placeholder = 'Please select an option below',
+                      onInitialize = I('function() { this.setValue(""); }')
+                    )
+                  ),
+                  plotlyOutput("ipcc_histogram", height = "600px")
                 )
               )
             ),     
@@ -105,6 +119,15 @@ server <- function(input, output, session) {
     var <- paste0(input$year, "_int16")
     
     colorNumeric(palette = c("#A1E8A1", "#FF6600"), domain = countries$var)
+    
+  })
+  
+  # reactive color palette for IPCC summaries
+  ipcc_pal <- reactive({
+    
+    var <- paste0(input$year, "_int16")
+    
+    colorNumeric(palette = c("#A1E8A1", "#FF6600"), domain = ipcc$var)
     
   })
   
@@ -159,11 +182,11 @@ server <- function(input, output, session) {
   observe({
     if (is.null(url())) {
       leafletProxy("map") %>%
-        clearGroup(c("hfi", "Countries"))
+        clearGroup(c("hfi", "Countries", "IPCC"))
     }
     
     leafletProxy("map") %>%
-      clearGroup(c("hfi", "Countries")) %>%
+      clearGroup(c("hfi", "Countries", "IPCC")) %>%
       clearControls() %>% 
       addTiles(
         url(),
@@ -195,10 +218,42 @@ server <- function(input, output, session) {
           title = "Average HFI by Country",
           group = "Countries"
         )
-    } else {
-      leafletProxy("map") %>% 
-        clearShapes() %>% 
-        clearControls()
+    }
+    # } else {
+    #   leafletProxy("map") %>% 
+    #     clearShapes() %>% 
+    #     clearControls()
+    # }
+    
+    # add ipcc layer
+    if(input$add_ipcc) {
+      leafletProxy("map") %>%
+        addPolygons(
+          data = ipcc,
+          fillColor = ~ipcc_pal()(get(paste0(input$year, "_int16"))),
+          fillOpacity = 0.85,
+          weight = 0.5,
+          color = "#444444",
+          group = "IPCC", 
+          #label = ~ paste0(var_labels[input$socio_layers], ": ", format(round(get(input$socio_layers), 0), big.mark = ",")),
+          popup = ~ paste(
+            "<strong>",NAME, "</strong>",
+            "<br>", paste(input$year, "Mean HFI:"),
+            round(get(paste0(input$year, "_int16")), 2)
+          )
+        ) %>%
+        addLegend(
+          position = "bottomright",
+          pal = ipcc_pal(),
+          values = countries[[paste0(input$year, "_int16")]],
+          title = "Average HFI by IPCC Region",
+          group = "IPCC"
+        )
+    # } else {
+    #   leafletProxy("map") %>% 
+    #     clearShapes() %>% 
+    #     clearControls()
+    # }
     }
 
   })
@@ -263,7 +318,38 @@ server <- function(input, output, session) {
     
   })
   
-  
+  # ipcc histogram --------------------------
+  output$ipcc_histogram <- renderPlotly({
+    
+    # Calculate histogram bins for all countries
+    hist_data <- reactive({
+      ipcc %>%
+        st_drop_geometry() %>%
+        group_by(NAME) %>%
+        summarise(Value = mean(get(paste0(
+          input$year, "_int16"
+        ))))
+    })
+    
+    # Create the plot
+    p <- plot_ly(
+      data = hist_data(),
+      x = ~Value,
+      y = ~reorder(NAME, -Value),
+      type = "bar",
+      color = ~ifelse(NAME == input$ipcc, "Highlighted", "All Countries"),
+      colors = c("All Countries" = "lightgray", "Highlighted" = "red")
+    ) %>%
+      layout(
+        #title = "Value Distribution by Country",
+        xaxis = list(title = "Mean HFI"),
+        yaxis = list(title = ""),
+        barmode = "stack"
+      )
+    
+    return(p)
+    
+  })
   
   output$timeSeries <- renderPlotly({
     # Data preparation
