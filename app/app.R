@@ -8,7 +8,9 @@ library(plotly)
 library(sf)
 
 # read in vector layers
-ipcc <- read_sf("app_data/IPCC_regions/referenceRegions.shp")
+ipcc <- read_sf("app_data/IPCC_regions/referenceRegions.shp") %>% 
+  # create shortened name column
+  mutate(NAME_short = str_remove(NAME, "\\s*\\[.*\\]"))
 countries <- read_sf("app_data/countries.shp") %>% arrange(name)
 
 # Generate sample data
@@ -118,7 +120,7 @@ server <- function(input, output, session) {
     
     var <- paste0(input$year, "_int16")
     
-    colorNumeric(palette = c("#A1E8A1", "#FF6600"), domain = countries$var)
+    colorNumeric(palette = c("#add9ad",  "#d65900"), domain = countries$var)
     
   })
   
@@ -132,24 +134,19 @@ server <- function(input, output, session) {
   })
   
   
-  # Initial map output
+  # Map output -------------------------------------
   output$map <- renderLeaflet({
     leaflet() %>%
       #addProviderTiles("OpenStreetMap") %>% 
       addProviderTiles(providers$CartoDB.DarkMatter) %>%
       setView(lng = 0, lat = 30, zoom = 2)
-      #addPolygons(data = countries, color = "#00bc8c", weight = 1, fillOpacity = 0, popup = ~name, group = "Countries") %>% 
-      # addLayersControl(
-      #   overlayGroups = c("Countries", "Borders"),  # Specify the layers to toggle
-      #   options = layersControlOptions(collapsed = FALSE)  # Control options
-      # )
+    
   })
   
   # this makes it so the proxy map is rendered in the background, otherwise the map is empty when you first navigate to this page
   outputOptions(output, "map", suspendWhenHidden=FALSE)
   
   # change tile url based on selected year and map type
-  
   url <- reactive({
     if (input$map_type == "Annual Map") {
       paste0(
@@ -178,35 +175,38 @@ server <- function(input, output, session) {
     
   })
   
-  # Update map layer
+  ## Update map layer -------------------------------
   observe({
-    if (is.null(url())) {
-      leafletProxy("map") %>%
-        clearGroup(c("hfi", "Countries", "IPCC"))
+    
+    map_proxy <- leafletProxy("map")
+    
+    # Clear all groups initially
+    map_proxy %>%
+      clearControls()
+    
+    # # Add base tile layer if a URL is provided
+    if (!is.null(url())) {
+      map_proxy %>%
+        addTiles(
+          url(),
+          group = "hfi",
+          options = tileOptions(maxNativeZoom = 12)
+        )
     }
     
-    leafletProxy("map") %>%
-      clearGroup(c("hfi", "Countries", "IPCC")) %>%
-      clearControls() %>% 
-      addTiles(
-        url(),
-        group = "hfi",
-        options = tileOptions(maxNativeZoom = 12)
-      )
     
-    # Add country layers
-    if(input$add_country) {
-        leafletProxy("map") %>%
+    # Add or remove Country layer
+    if (input$add_country) {
+      map_proxy %>%
         addPolygons(
           data = countries,
           fillColor = ~country_pal()(get(paste0(input$year, "_int16"))),
-          fillOpacity = 0.85,
+          fillOpacity = 0.95,
           weight = 0.5,
           color = "#444444",
-          group = "Countries", 
-          #label = ~ paste0(var_labels[input$socio_layers], ": ", format(round(get(input$socio_layers), 0), big.mark = ",")),
+          group = "Countries",
           popup = ~ paste(
-            "<strong>",name, "</strong>",
+            "<strong>", name, "</strong>",
             "<br>", paste(input$year, "Mean HFI:"),
             round(get(paste0(input$year, "_int16")), 2)
           )
@@ -218,26 +218,24 @@ server <- function(input, output, session) {
           title = "Average HFI by Country",
           group = "Countries"
         )
+    } else {
+      # Clear group and control
+      map_proxy %>%
+        clearGroup("Countries") 
     }
-    # } else {
-    #   leafletProxy("map") %>% 
-    #     clearShapes() %>% 
-    #     clearControls()
-    # }
     
-    # add ipcc layer
-    if(input$add_ipcc) {
-      leafletProxy("map") %>%
+    # Add or remove IPCC layer
+    if (input$add_ipcc) {
+      map_proxy %>%
         addPolygons(
           data = ipcc,
           fillColor = ~ipcc_pal()(get(paste0(input$year, "_int16"))),
           fillOpacity = 0.85,
           weight = 0.5,
           color = "#444444",
-          group = "IPCC", 
-          #label = ~ paste0(var_labels[input$socio_layers], ": ", format(round(get(input$socio_layers), 0), big.mark = ",")),
+          group = "IPCC",
           popup = ~ paste(
-            "<strong>",NAME, "</strong>",
+            "<strong>", NAME, "</strong>",
             "<br>", paste(input$year, "Mean HFI:"),
             round(get(paste0(input$year, "_int16")), 2)
           )
@@ -245,16 +243,16 @@ server <- function(input, output, session) {
         addLegend(
           position = "bottomright",
           pal = ipcc_pal(),
-          values = countries[[paste0(input$year, "_int16")]],
+          values = ipcc[[paste0(input$year, "_int16")]],
           title = "Average HFI by IPCC Region",
           group = "IPCC"
         )
-    # } else {
-    #   leafletProxy("map") %>% 
-    #     clearShapes() %>% 
-    #     clearControls()
-    # }
+    } else {
+      # Clear group and control
+      map_proxy %>%
+        clearGroup("IPCC") 
     }
+   
 
   })
   
@@ -285,7 +283,9 @@ server <- function(input, output, session) {
   })
   
   
-  # country histogram --------------------------
+  # Chart Outputs -------------------------------------------------
+  
+  ##  country histogram --------------------------
   output$country_histogram <- renderPlotly({
     
     # Calculate histogram bins for all countries
@@ -293,39 +293,42 @@ server <- function(input, output, session) {
       countries %>%
         st_drop_geometry() %>%
         group_by(name) %>%
-        summarise(Value = mean(get(paste0(
+        summarise(value = mean(get(paste0(
           input$year, "_int16"
         ))))
     })
-    
+
     # Create the plot
     p <- plot_ly(
       data = hist_data(),
-      x = ~Value,
-      y = ~reorder(name, -Value),
+      x = ~value,
+      y = ~reorder(name, -value),
       type = "bar",
-      color = ~ifelse(name == input$country, "Highlighted", "All Countries"),
-      colors = c("All Countries" = "lightgray", "Highlighted" = "red")
+      color = ~ifelse(name == input$country, 'Selected', "All Countries"),
+      colors = c("All Countries" = "lightgray", 'Selected' = "red")
     ) %>%
       layout(
         #title = "Value Distribution by Country",
         xaxis = list(title = "Mean HFI"),
-        yaxis = list(title = ""),
-        barmode = "stack"
+        yaxis = list(title = "Country", showticklabels = FALSE),
+        barmode = "stack",
+        margin = list(l = 5, r = 5, t = 40, b = 5),  # Reduces margins, slight top margin for spacing
+        legend = list(orientation = "h", x = 0, y = 0.97, xanchor = "left", yanchor = "bottom")  # Moves legend closer to the chart
       )
     
     return(p)
     
   })
   
-  # ipcc histogram --------------------------
+  ## ipcc histogram --------------------------
   output$ipcc_histogram <- renderPlotly({
     
     # Calculate histogram bins for all countries
     hist_data <- reactive({
       ipcc %>%
         st_drop_geometry() %>%
-        group_by(NAME) %>%
+        # Remove region ID from labels
+        group_by(NAME, NAME_short) %>%
         summarise(Value = mean(get(paste0(
           input$year, "_int16"
         ))))
@@ -334,17 +337,39 @@ server <- function(input, output, session) {
     # Create the plot
     p <- plot_ly(
       data = hist_data(),
-      x = ~Value,
-      y = ~reorder(NAME, -Value),
+      x = ~ Value,
+      y = ~ reorder(NAME_short, -Value),
       type = "bar",
-      color = ~ifelse(NAME == input$ipcc, "Highlighted", "All Countries"),
-      colors = c("All Countries" = "lightgray", "Highlighted" = "red")
+      color = ~ ifelse(NAME == input$ipcc, "Selected", "All Countries"),
+      colors = c(
+        "All Countries" = "lightgray",
+        "Selected" = "red"
+      )
     ) %>%
       layout(
         #title = "Value Distribution by Country",
         xaxis = list(title = "Mean HFI"),
-        yaxis = list(title = ""),
-        barmode = "stack"
+        yaxis = list(
+          title = "",
+          tickfont = list(size = 10),
+          tickangle = -25
+        ),
+        barmode = "stack",
+        margin = list(
+          l = 1,
+          r = 1,
+          t = 25,
+          b = 5
+        ),
+        # Reduces margins, slight top margin for spacing
+        legend = list(
+          orientation = "h",
+          x = 0.5,
+          xanchor = "center",
+          y = 0.92,
+          yanchor = "bottom",
+          itemstacking = "false"
+        )
       )
     
     return(p)
