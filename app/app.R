@@ -3,6 +3,7 @@ library(shinyWidgets)
 library(leaflet)
 library(bslib)
 library(dplyr)
+library(stringr)
 library(ggplot2)
 library(plotly)
 library(sf)
@@ -33,8 +34,29 @@ my_theme <- bs_theme(
   secondary = "#BC0032"
 )
 
+# UI --------------------------------------------
+
 ui <- page_sidebar(
   theme = my_theme,
+  # Add custom CSS for modebar positioning and bar appearance
+  tags$head(
+    tags$style(
+      HTML(
+        "
+    /* Force horizontal legend arrangement */
+.js-plotly-plot .plotly .legend .traces {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+}
+
+.js-plotly-plot .plotly .legend .traces .trace {
+  display: inline-block !important;
+  margin-right: 15px !important;
+}
+    ")
+    )
+  ),
   #includeCSS("www/style.css"),
   title = "Human Footprint Index Dashboard",
   sidebar = sidebar(
@@ -42,64 +64,126 @@ ui <- page_sidebar(
       "map_type",
       choices = c("Annual Map", "Change Map"),
       selected = "Annual Map"
-    ), 
+    ),
     #title = "Controls",
-    sliderInput("year", 
-                "Select Year:",
-                min = min(years),
-                max = max(years),
-                value = max(years),
-                step = 24,
-                sep = ""),
+    sliderInput(
+      "year",
+      "Select Year:",
+      min = min(years),
+      max = max(years),
+      value = max(years),
+      step = 24,
+      sep = ""
+    ),
     em("For change maps, must select a year greater than 1999"),
-    accordion(open = FALSE,
-              accordion_panel(
-                "Regional Summaries",
-                radioGroupButtons(
-                  "level",
-                  "Summarize By:",
-                  choices = c("Country", "IPCC Region"),
-                  selected = "Country"
-                ),            
-                conditionalPanel(
-                  "input.level == 'Country'",
-                  materialSwitch("add_country", "Add Layer to Map:", value = FALSE),
-                  selectizeInput(
-                    "country",
-                    "Select Country",
-                    choices = unique(countries$name),
-                    options = list(
-                      placeholder = 'Please select an option below',
-                      onInitialize = I('function() { this.setValue(""); }')
-                    )
-                  ),
-                  plotlyOutput("country_histogram", height = "600px")
-                ),
-                conditionalPanel(
-                  "input.level == 'IPCC Region'",
-                  materialSwitch("add_ipcc", "Add Layer to Map:", value = FALSE),
-                  selectizeInput(
-                    "ipcc",
-                    "Select IPCC Region",
-                    choices = unique(ipcc$NAME),
-                    options = list(
-                      placeholder = 'Please select an option below',
-                      onInitialize = I('function() { this.setValue(""); }')
-                    )
-                  ),
-                  plotlyOutput("ipcc_histogram", height = "600px")
-                )
+    ## Regional summaries ------------------
+    accordion(
+      open = FALSE,
+      accordion_panel(
+        "Regional Summaries",
+        radioGroupButtons(
+          "level",
+          "Summarize By:",
+          choices = c("Country", "IPCC Region"),
+          selected = "Country"
+        ),
+        # Reset view button
+        actionButton(
+          "reset_view",
+          "Reset Map View",
+          icon = icon("globe"),
+          class = "btn-primary btn-sm",
+          style = "margin-top: 10px; width: 100%;"
+        ),
+        conditionalPanel(
+          "input.level == 'Country'",
+          materialSwitch("add_country", "Add Layer to Map:", value = FALSE),
+          selectizeInput(
+            "country",
+            "Select Country",
+            choices = unique(countries$name),
+            options = list(
+              placeholder = 'Please select an option below',
+              onInitialize = I('function() { this.setValue(""); }')
+            )
+          ),
+          # plotlyOutput("country_histogram", height = "600px")
+        ),
+        conditionalPanel(
+          "input.level == 'IPCC Region'",
+          materialSwitch("add_ipcc", "Add Layer to Map:", value = FALSE),
+          selectizeInput(
+            "ipcc",
+            "Select IPCC Region",
+            choices = unique(ipcc$NAME),
+            options = list(
+              placeholder = 'Please select an option below',
+              onInitialize = I('function() { this.setValue(""); }')
+            )
+          ),
+          # plotlyOutput("ipcc_histogram", height = "600px")
+        ),
+        ### Tabset viz panel ----------------
+        tabsetPanel(
+          id = "viz_tabs",
+          type = "pills",
+          tabPanel(
+            "Distribution",
+            div(style = "padding-top: 10px;"),
+            conditionalPanel(
+              "input.level == 'Country'",
+              plotlyOutput("country_heatmap", height = "350px")
+            ),
+            conditionalPanel(
+              "input.level == 'IPCC Region'",
+              plotlyOutput("ipcc_heatmap", height = "350px")
+            )
+          ),
+          tabPanel(
+            "High/Low",
+            div(style = "padding-top: 10px;"),
+            conditionalPanel(
+              "input.level == 'Country'",
+              plotlyOutput("country_high_low", height = "350px")
+            ),
+            conditionalPanel(
+              "input.level == 'IPCC Region'",
+              plotlyOutput("ipcc_high_low", height = "300px")
+            )
+          ),
+          tabPanel(
+            "Time Series",
+            div(style = "padding-top: 10px;"),
+            conditionalPanel(
+              "input.level == 'Country' && input.country != ''",
+              plotlyOutput("country_time_series", height = "350px")
+            ),
+            conditionalPanel(
+              "input.level == 'IPCC Region' && input.ipcc != ''",
+              plotlyOutput("ipcc_time_series", height = "350px")
+            ),
+            conditionalPanel(
+              "(input.level == 'Country' && input.country == '') || (input.level == 'IPCC Region' && input.ipcc == '')",
+              div(
+                style = "text-align: center; padding: 50px 20px;",
+                icon("exclamation-circle", style = "font-size: 30px; color: #BC0032;"),
+                h5("Please select a region to view time series data")
               )
-            ),     
+            )
+          )
+        )
+      )
+    ),
+    ### Global mean -------------
     card(
       full_screen = TRUE,
       card_header("Mean Annual Change"),
       plotlyOutput("timeSeries", height = "300px")
     ),
-    width = "400px"
+    width = "450px"
   ),
   
-  # Main content - just the map
+  ## Map content -------------
   card(
     full_screen = TRUE,
     height = "800px",
@@ -107,6 +191,7 @@ ui <- page_sidebar(
   )
 )
 
+# SERVER ------------------------------------------
 server <- function(input, output, session) {
   
   # Reactive filtered data
@@ -120,8 +205,11 @@ server <- function(input, output, session) {
     
     var <- paste0(input$year, "_int16")
     
-    colorNumeric(palette = c("#add9ad",  "#d65900"), domain = countries$var)
-    
+    colorNumeric(
+      colorRampPalette(c("#fee0d2", "#fcbba1", "#fc9272", "#fb6a4a", "#ef3b2c", "#cb181d", "#a50f15", "#67000d"))(100),
+      domain = countries[[var]]
+    )
+
   })
   
   # reactive color palette for IPCC summaries
@@ -129,7 +217,10 @@ server <- function(input, output, session) {
     
     var <- paste0(input$year, "_int16")
     
-    colorNumeric(palette = c("#A1E8A1", "#FF6600"), domain = ipcc$var)
+    colorNumeric(
+      colorRampPalette(c("#fee0d2", "#fcbba1", "#fc9272", "#fb6a4a", "#ef3b2c", "#cb181d", "#a50f15", "#67000d"))(100),
+      domain = countries[[var]]
+    )
     
   })
   
@@ -258,7 +349,7 @@ server <- function(input, output, session) {
   
   
   
-  ### zoom to region ------
+  ### zoom to country ------
   observeEvent(input$country, {
     if (input$country == "") {
       leafletProxy("map")
@@ -266,8 +357,6 @@ server <- function(input, output, session) {
       zoom <- reactive({
         countries %>%
           filter(name == input$country) %>%
-          st_bbox() %>%
-          st_as_sfc(crs = st_crs(countries)) %>%
           st_centroid() %>%
           st_coordinates()
         
@@ -282,100 +371,725 @@ server <- function(input, output, session) {
     
   })
   
-  
-  # Chart Outputs -------------------------------------------------
-  
-  ##  country histogram --------------------------
-  output$country_histogram <- renderPlotly({
+  ### zoom to ipcc ------
+  observeEvent(input$ipcc, {
+    if (input$ipcc == "") {
+      leafletProxy("map")
+    } else {
+      zoom <- reactive({
+        ipcc %>%
+          filter(NAME == input$ipcc) %>%
+          st_centroid() %>%
+          st_coordinates()
+        
+      })
+      
+      leafletProxy('map') %>%
+        setView(lng = zoom()[1],
+                lat = zoom()[2],
+                zoom = 4)
+    }
     
-    # Calculate histogram bins for all countries
-    hist_data <- reactive({
-      countries %>%
-        st_drop_geometry() %>%
-        group_by(name) %>%
-        summarise(value = mean(get(paste0(
-          input$year, "_int16"
-        ))))
-    })
-
-    # Create the plot
-    p <- plot_ly(
-      data = hist_data(),
-      x = ~value,
-      y = ~reorder(name, -value),
-      type = "bar",
-      color = ~ifelse(name == input$country, 'Selected', "All Countries"),
-      colors = c("All Countries" = "lightgray", 'Selected' = "red")
-    ) %>%
-      layout(
-        #title = "Value Distribution by Country",
-        xaxis = list(title = "Mean HFI"),
-        yaxis = list(title = "Country", showticklabels = FALSE),
-        barmode = "stack",
-        margin = list(l = 5, r = 5, t = 40, b = 5),  # Reduces margins, slight top margin for spacing
-        legend = list(orientation = "h", x = 0, y = 0.97, xanchor = "left", yanchor = "bottom")  # Moves legend closer to the chart
-      )
-    
-    return(p)
     
   })
   
-  ## ipcc histogram --------------------------
-  output$ipcc_histogram <- renderPlotly({
+  # Add observer for reset view button
+  observeEvent(input$reset_view, {
+    # Reset the map view to global view
+    leafletProxy("map") %>%
+      setView(lng = 0, lat = 30, zoom = 2)
     
-    # Calculate histogram bins for all countries
-    hist_data <- reactive({
-      ipcc %>%
-        st_drop_geometry() %>%
-        # Remove region ID from labels
-        group_by(NAME, NAME_short) %>%
-        summarise(Value = mean(get(paste0(
-          input$year, "_int16"
-        ))))
-    })
+    # Also optionally clear the country/region selection
+    if (input$level == "Country") {
+      updateSelectizeInput(session, "country", selected = "")
+    } else {
+      updateSelectizeInput(session, "ipcc", selected = "")
+    }
+  })
+  
+  
+  # Chart Outputs -------------------------------------------------
+  
+  # ##  country histogram 
+  # output$country_histogram <- renderPlotly({
+  #   
+  #   # Calculate histogram bins for all countries
+  #   hist_data <- reactive({
+  #     countries %>%
+  #       st_drop_geometry() %>%
+  #       group_by(name) %>%
+  #       summarise(value = mean(get(paste0(
+  #         input$year, "_int16"
+  #       ))))
+  #   })
+  # 
+  #   # Create the plot
+  #   p <- plot_ly(
+  #     data = hist_data(),
+  #     x = ~value,
+  #     y = ~reorder(name, -value),
+  #     type = "bar",
+  #     color = ~ifelse(name == input$country, 'Selected', "All Countries"),
+  #     colors = c("All Countries" = "lightgray", 'Selected' = "red")
+  #   ) %>%
+  #     layout(
+  #       #title = "Value Distribution by Country",
+  #       xaxis = list(title = "Mean HFI"),
+  #       yaxis = list(title = "Country", showticklabels = FALSE),
+  #       barmode = "stack",
+  #       margin = list(l = 5, r = 5, t = 40, b = 5),  # Reduces margins, slight top margin for spacing
+  #       legend = list(orientation = "h", x = 0, y = 0.97, xanchor = "left", yanchor = "bottom")  # Moves legend closer to the chart
+  #     )
+  #   
+  #   return(p)
+  #   
+  # })
+  # 
+  # ## ipcc histogram 
+  # output$ipcc_histogram <- renderPlotly({
+  #   
+  #   # Calculate histogram bins for all countries
+  #   hist_data <- reactive({
+  #     ipcc %>%
+  #       st_drop_geometry() %>%
+  #       # Remove region ID from labels
+  #       group_by(NAME, NAME_short) %>%
+  #       summarise(Value = mean(get(paste0(
+  #         input$year, "_int16"
+  #       ))))
+  #   })
+  #   
+  #   # Create the plot
+  #   p <- plot_ly(
+  #     data = hist_data(),
+  #     x = ~ Value,
+  #     y = ~ reorder(NAME_short, -Value),
+  #     type = "bar",
+  #     color = ~ ifelse(NAME == input$ipcc, "Selected", "All Countries"),
+  #     colors = c(
+  #       "All Countries" = "lightgray",
+  #       "Selected" = "red"
+  #     )
+  #   ) %>%
+  #     layout(
+  #       #title = "Value Distribution by Country",
+  #       xaxis = list(title = "Mean HFI"),
+  #       yaxis = list(
+  #         title = "",
+  #         tickfont = list(size = 10),
+  #         tickangle = -25
+  #       ),
+  #       barmode = "stack",
+  #       margin = list(
+  #         l = 1,
+  #         r = 1,
+  #         t = 25,
+  #         b = 5
+  #       ),
+  #       # Reduces margins, slight top margin for spacing
+  #       legend = list(
+  #         orientation = "h",
+  #         x = 0.5,
+  #         xanchor = "center",
+  #         y = 0.92,
+  #         yanchor = "bottom",
+  #         itemstacking = "false"
+  #       )
+  #     )
+  #   
+  #   return(p)
+  #   
+  # })
+  
+  ## Data ------------------------------------------------
+  
+  # Calculate country data (used in multiple visualizations)
+  country_data <- reactive({
+    countries %>%
+      st_drop_geometry() %>%
+      group_by(name, type) %>%
+      summarise(value = mean(get(paste0(input$year, "_int16"))))
+  })
+  
+  # Calculate IPCC data (used in multiple visualizations)
+  ipcc_data <- reactive({
+    ipcc %>%
+      st_drop_geometry() %>%
+      group_by(NAME, NAME_short) %>%
+      summarise(value = mean(get(paste0(input$year, "_int16"))))
+  })
+  
+  
+  ## Distribution --------------------------
+  
+  # Country heatmap visualization
+  output$country_heatmap <- renderPlotly({
+    # Create bins in increments of 10
+    bin_breaks <- seq(0, 100, by = 10)
+    bin_labels <- paste0(bin_breaks[-length(bin_breaks)], "-", bin_breaks[-1] - 1)
     
-    # Create the plot
+    data <- country_data() %>%
+      mutate(
+        bin_group = cut(
+          value, 
+          breaks = bin_breaks,
+          labels = bin_labels,
+          include.lowest = TRUE
+        )
+      )
+    
+    # Count countries in each bin
+    bin_counts <- data %>%
+      group_by(bin_group) %>%
+      summarise(count = n()) %>%
+      arrange(bin_group)
+    
+    # Generate a color palette with increasing intensity
+    n_bins <- length(bin_labels)
+    colors <- colorRampPalette(c("#C6DBEF", "#08519C"))(n_bins)
+    
+    # Create a cleaner histogram visualization
     p <- plot_ly(
-      data = hist_data(),
-      x = ~ Value,
-      y = ~ reorder(NAME_short, -Value),
+      bin_counts,
+      x = ~bin_group,
+      y = ~count,
       type = "bar",
-      color = ~ ifelse(NAME == input$ipcc, "Selected", "All Countries"),
-      colors = c(
-        "All Countries" = "lightgray",
-        "Selected" = "red"
+      marker = list(
+        color = colors,
+        line = list(width = 1, color = "#444")
       )
     ) %>%
       layout(
-        #title = "Value Distribution by Country",
-        xaxis = list(title = "Mean HFI"),
+        title = list(
+          text = "Distribution of Countries by HFI Value",
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.85
+        ),
+        xaxis = list(
+          title = "HFI Value Range",
+          showgrid = FALSE,
+          categoryorder = "array",
+          categoryarray = bin_labels,
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "Number of Countries",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        bargap = 0.1,
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        font = list(color = "#FFFFFF"),
+        legend = list(
+          font = list(color = "#FFFFFF"),
+          y = 0.8,
+          x = 0
+        ),
+        margin = list(l = 5, r = 5, t = 60, b = 5) # add space to top
+      )
+    
+    # Add annotation for selected country if applicable
+    if (input$country != "") {
+      selected_value <- data %>%
+        filter(name == input$country) %>%
+        pull(value)
+      
+      selected_bin <- data %>%
+        filter(name == input$country) %>%
+        pull(bin_group)
+      
+      p <- p %>%
+        add_annotations(
+          x = selected_bin,
+          y = bin_counts %>% filter(bin_group == selected_bin) %>% pull(count),
+          text = paste0(input$country, ": ", round(selected_value, 1)),
+          showarrow = TRUE,
+          arrowhead = 2,
+          arrowsize = 1,
+          arrowwidth = 2,
+          arrowcolor = "#BC0032",
+          font = list(color = "#FFFFFF")
+        )
+    }
+    
+    return(p)
+  })
+  
+  # IPCC heatmap visualization
+  output$ipcc_heatmap <- renderPlotly({
+    # Create bins in increments of 10
+    bin_breaks <- seq(0, 100, by = 10)
+    bin_labels <- paste0(bin_breaks[-length(bin_breaks)], "-", bin_breaks[-1] - 1)
+    
+    data <- ipcc_data() %>%
+      mutate(
+        bin_group = cut(
+          value, 
+          breaks = bin_breaks,
+          labels = bin_labels,
+          include.lowest = TRUE
+        )
+      )
+    
+    # Count regions in each bin
+    bin_counts <- data %>%
+      group_by(bin_group) %>%
+      summarise(count = n()) %>%
+      arrange(bin_group)
+    
+    # Generate a color palette with increasing intensity
+    n_bins <- length(bin_labels)
+    colors <- colorRampPalette(c("#C6DBEF", "#08519C"))(n_bins)
+    
+    # Create a cleaner histogram visualization
+    p <- plot_ly(
+      bin_counts,
+      x = ~bin_group,
+      y = ~count,
+      type = "bar",
+      marker = list(
+        color = colors,
+        line = list(width = 1, color = "#444")
+      )
+    ) %>%
+      layout(
+        title = list(
+          text = "Distribution of IPCC Regions by HFI Value",
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.85
+        ),
+        xaxis = list(
+          title = "HFI Value Range",
+          showgrid = FALSE,
+          categoryorder = "array",
+          categoryarray = bin_labels,
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "Number of Regions",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        bargap = 0.1,
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        font = list(color = "#FFFFFF"),
+        legend = list(
+          font = list(color = "#FFFFFF"),
+          y = 0.8,
+          x = 0
+        ),
+        margin = list(l = 5, r = 5, t = 60, b = 5) # add space to top
+      )
+    
+    # Add annotation for selected region if applicable
+    if (input$ipcc != "") {
+      selected_value <- data %>%
+        filter(NAME == input$ipcc) %>%
+        pull(value)
+      
+      selected_bin <- data %>%
+        filter(NAME == input$ipcc) %>%
+        pull(bin_group)
+      
+      # Get the short name for display
+      selected_name <- data %>%
+        filter(NAME == input$ipcc) %>%
+        pull(NAME_short)
+      
+      p <- p %>%
+        add_annotations(
+          x = selected_bin,
+          y = bin_counts %>% filter(bin_group == selected_bin) %>% pull(count),
+          text = paste0(selected_name, ": ", round(selected_value, 1)),
+          showarrow = TRUE,
+          arrowhead = 2,
+          arrowsize = 1,
+          arrowwidth = 2,
+          arrowcolor = "#BC0032",
+          font = list(color = "#FFFFFF")
+        )
+    }
+    
+    return(p)
+  })
+  
+  ## High/Low -------------------
+  # Country High/Low visualization
+  output$country_high_low <- renderPlotly({
+    data <- country_data() %>%
+      #filter out dependencies etc
+      filter(type %in% c("Country", "Sovereign country", "Sovereignty")) %>% 
+      arrange(desc(value))
+    
+    # Get top 10 and bottom 10
+    top10 <- head(data, 10)
+    bottom10 <- tail(data, 10)
+    
+    # Start with top10 and bottom10
+    display_data <- bind_rows(top10, bottom10)
+    
+    # Determine if selected country is already in High/Low 10
+    selected_in_display <- FALSE
+    if (input$country != "") {
+      selected_in_display <- input$country %in% c(top10$name, bottom10$name)
+    }
+    
+    # Add selected country if it exists and isn't already in High/Low 10
+    if (input$country != "" && !selected_in_display) {
+      selected <- data %>% filter(name == input$country)
+      display_data <- bind_rows(top10, selected, bottom10)
+    }
+    
+    # Add a group column for coloring
+    display_data <- display_data %>%
+      mutate(group = case_when(
+        name %in% top10$name & name == input$country ~ "Selected Top 10",
+        name %in% bottom10$name & name == input$country ~ "Selected Bottom 10",
+        name %in% top10$name ~ "Top 10",
+        name %in% bottom10$name ~ "Bottom 10",
+        TRUE ~ "Selected"
+      ))
+    
+    # Create a horizontal bar chart
+    p <- plot_ly(
+      display_data,
+      y = ~reorder(name, value),
+      x = ~value,
+      type = "bar",
+      orientation = "h",
+      color = ~group,
+      colors = c(
+        "Top 10" = "#BC0032", 
+        "Bottom 10" = "#00bc8c", 
+        "Selected" = "#f39c12", 
+        "Selected Top 10" = "#e74c3c", 
+        "Selected Bottom 10" = "#2ecc71"
+      )
+    ) %>%
+      layout(
+        title = list(
+          text = "Countries with Highest and Lowest HFI",
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.9
+        ),
+        xaxis = list(
+          title = "Human Footprint Index",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
         yaxis = list(
           title = "",
-          tickfont = list(size = 10),
-          tickangle = -25
+          showgrid = FALSE,
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF", size = 10),
+          showticklabels = TRUE,
+          dtick = 1 # Force a tick for each position
         ),
-        barmode = "stack",
+        margin = list(
+                  l = 1,
+                  r = 1,
+                  t = 70,
+                  b = 5
+                ),
+                # Reduces margins, slight top margin for spacing
+                legend = list(
+                  orientation = "h",
+                  x = 0.5,
+                  xanchor = "center",
+                  y = 0.98,
+                  yanchor = "bottom",
+                  itemstacking = "false",
+                  itemwidth = 50,
+                  bgcolor = "rgba(0, 0, 0, 0)"
+                ),
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        font = list(color = "#FFFFFF")
+      )
+    
+    return(p)
+  })
+  
+  # IPCC High/Low visualization
+  output$ipcc_high_low <- renderPlotly({
+    data <- ipcc_data() %>%
+      arrange(desc(value))
+    
+    # Get top 5 and bottom 5 (or all if less than 20 total)
+    max_regions <- min(5, floor(nrow(data)/2))
+    top5 <- head(data, max_regions)
+    bottom5 <- tail(data, max_regions)
+    
+    # Start with top10 and bottom10
+    display_data <- bind_rows(top5, bottom5)
+    
+    # Determine if selected region is already in High/Low
+    selected_in_display <- FALSE
+    if (input$ipcc != "") {
+      selected_in_display <- input$ipcc %in% c(top5$NAME, bottom5$NAME)
+    }
+    
+    # Add selected region if it exists and isn't already in High/Low
+    if (input$ipcc != "" && !selected_in_display) {
+      selected <- data %>% filter(NAME == input$ipcc)
+      display_data <- bind_rows(top5, selected, bottom5)
+    }
+    
+    # Add a group column for coloring
+    display_data <- display_data %>%
+      mutate(group = case_when(
+        NAME %in% top5$NAME & NAME == input$ipcc ~ "Selected Top",
+        NAME %in% bottom5$NAME & NAME == input$ipcc ~ "Selected Bottom",
+        NAME %in% top5$NAME ~ "Top Regions",
+        NAME %in% bottom5$NAME ~ "Bottom Regions",
+        TRUE ~ "Selected"
+      ))
+    
+    # Create a horizontal bar chart
+    p <- plot_ly(
+      display_data,
+      y = ~reorder(NAME_short, value),
+      x = ~value,
+      type = "bar",
+      orientation = "h",
+      #width = 0.8,
+      color = ~group,
+      colors = c(
+        "Top Regions" = "#BC0032", 
+        "Bottom Regions" = "#00bc8c", 
+        "Selected" = "#f39c12", 
+        "Selected Top" = "#e74c3c", 
+        "Selected Bottom" = "#2ecc71"
+      )
+    ) %>%
+      layout(
+        title = list(
+          text = "IPCC Regions with Highest and Lowest HFI",
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.9
+        ),
+        xaxis = list(
+          title = "Human Footprint Index",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "",
+          showgrid = FALSE,
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF", size = 12),
+          showticklabels = TRUE,
+          dtick = 1 # Force a tick for each position
+        ),
+        bargap = 0.2, # Remove gaps between bars
+        bargroupgap = 0, # Remove gaps between bar groups
+        barmode = "stack", # Ensures bars are directly adjacent
         margin = list(
           l = 1,
           r = 1,
-          t = 25,
-          b = 5
+          t = 90,
+          b = 1
+        ),# Reduces margins, slight top margin for spacing
+        legend = list(
+          orientation = "h",
+          x = 1,
+          xanchor = "right",
+          y = 0.95,
+          yanchor = "bottom",
+          itemwidth = 40,
+          itemsizing = "constant",
+          bgcolor = "rgba(0, 0, 0, 0)",
+          traceorder = "normal"  # Add this line
         ),
-        # Reduces margins, slight top margin for spacing
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        font = list(color = "#FFFFFF")
+      )
+    
+    return(p)
+  })
+  
+  # Country time series
+  output$country_time_series <- renderPlotly({
+    req(input$country)
+    
+    # For this example, we'll create sample time series data
+    years_data <- years
+    values <- runif(length(years_data), 30, 70) # Simple random trend
+    
+    # Add some trend for visual appeal
+    for (i in 2:length(values)) {
+      values[i] <- values[i-1] + rnorm(1, 0, 3)
+      if (values[i] < 10) values[i] <- 10
+      if (values[i] > 90) values[i] <- 90
+    }
+    
+    ts_data <- data.frame(
+      year = years_data,
+      value = values
+    )
+    
+    # Global average for comparison
+    global_data <- data.frame(
+      year = years_data,
+      value = runif(length(years_data), 40, 60)
+    )
+    
+    # Create time series plot
+    p <- plot_ly() %>%
+      add_trace(
+        data = ts_data,
+        x = ~year,
+        y = ~value,
+        type = "scatter",
+        mode = "lines+markers",
+        name = input$country,
+        line = list(color = "#00bc8c", width = 3)
+      ) %>%
+      add_trace(
+        data = global_data,
+        x = ~year,
+        y = ~value,
+        type = "scatter",
+        mode = "lines",
+        name = "Global Average",
+        line = list(color = "#3498db", width = 2, dash = "dash")
+      ) %>%
+      layout(
+        title = list(
+          text = paste0("HFI Trend for ", input$country),
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.95
+        ),
+        xaxis = list(
+          title = "Year",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "Human Footprint Index",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
         legend = list(
           orientation = "h",
           x = 0.5,
           xanchor = "center",
-          y = 0.92,
+          y = 0.85,
           yanchor = "bottom",
-          itemstacking = "false"
-        )
+          font = list(color = "#FFFFFF")
+        ),
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        font = list(color = "#FFFFFF")
       )
     
     return(p)
-    
   })
   
+  # IPCC time series (similar structure to country)
+  output$ipcc_time_series <- renderPlotly({
+    req(input$ipcc)
+    
+    # For this example, we'll create sample time series data
+    years_data <- years
+    values <- runif(length(years_data), 30, 70) 
+    
+    # Add some trend for visual appeal
+    for (i in 2:length(values)) {
+      values[i] <- values[i-1] + rnorm(1, 0, 2)
+      if (values[i] < 10) values[i] <- 10
+      if (values[i] > 90) values[i] <- 90
+    }
+    
+    ts_data <- data.frame(
+      year = years_data,
+      value = values
+    )
+    
+    # Global average for comparison
+    global_data <- data.frame(
+      year = years_data,
+      value = runif(length(years_data), 40, 60)
+    )
+    
+    # Create time series plot
+    selected_region <- ipcc %>% 
+      filter(NAME == input$ipcc) %>% 
+      pull(NAME_short)
+    
+    p <- plot_ly() %>%
+      add_trace(
+        data = ts_data,
+        x = ~year,
+        y = ~value,
+        type = "scatter",
+        mode = "lines+markers",
+        name = selected_region,
+        line = list(color = "#00bc8c", width = 3)
+      ) %>%
+      add_trace(
+        data = global_data,
+        x = ~year,
+        y = ~value,
+        type = "scatter",
+        mode = "lines",
+        name = "Global Average",
+        line = list(color = "#3498db", width = 2, dash = "dash")
+      ) %>%
+      layout(
+        title = list(
+          text = paste0("HFI Trend for ", selected_region),
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.95
+        ),
+        xaxis = list(
+          title = "Year",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "Human Footprint Index",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        legend = list(
+          orientation = "h",
+          x = 0.5,
+          xanchor = "center",
+          y = 0.85,
+          yanchor = "bottom",
+          font = list(color = "#FFFFFF")
+        ),
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        font = list(color = "#FFFFFF")
+      )
+    
+    return(p)
+  })
+  
+  # Global time series (kept from original)
   output$timeSeries <- renderPlotly({
     # Data preparation
     avg_data <- locations %>%
@@ -394,13 +1108,27 @@ server <- function(input, output, session) {
                 name = "Global Mean",legendgroup = "avg", showlegend = TRUE) %>%
       layout(
         #title = list(text = "Time Series of Average Values", x = 0.5),
-        xaxis = list(title = "Year", color = "#FFFFFF"),
-        yaxis = list(title = "Average HFI", color = "#FFFFFF"),
+        xaxis = list(
+          title = "Year", 
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "Average HFI", 
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
         plot_bgcolor = "#222222",
         paper_bgcolor = "#222222",
         font = list(color = "#FFFFFF"),
         margin = list(l = 40, r = 40, t = 60, b = 40),
-        legend = list(orientation = "h", x = 0.5, y = -0.2, xanchor = "center") 
+        legend = list(
+          orientation = "h", 
+          x = 0.5, 
+          y = -0.2, 
+          xanchor = "center",
+          font = list(color = "#FFFFFF")
+        ) 
       )
   })
 
