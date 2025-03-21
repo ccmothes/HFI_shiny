@@ -1,5 +1,6 @@
 library(shiny)
 library(shinyWidgets)
+library(shinycssloaders)
 library(leaflet)
 library(bslib)
 library(dplyr)
@@ -9,9 +10,19 @@ library(plotly)
 library(sf)
 
 # read in vector layers
-ipcc <- read_sf("app_data/IPCC_regions/referenceRegions.shp") %>% 
-  # create shortened name column
-  mutate(NAME_short = str_remove(NAME, "\\s*\\[.*\\]"))
+ipcc <- read_sf("app_data/IPCC_regions/referenceRegions.shp") %>%
+  # clean up names and create shortened title
+  mutate(
+    NAME = str_to_title(NAME),
+    NAME = if_else(
+      NAME == "Southern Topical Pacific",
+      "Southern Tropical Pacific",
+      NAME
+    ),
+    NAME_short = str_remove(NAME, "\\s*\\[.*\\]")
+  ) %>%
+  arrange(NAME)
+
 countries <- read_sf("app_data/countries.shp") %>% arrange(name)
 
 # Generate sample data
@@ -38,25 +49,6 @@ my_theme <- bs_theme(
 
 ui <- page_sidebar(
   theme = my_theme,
-  # Add custom CSS for modebar positioning and bar appearance
-  tags$head(
-    tags$style(
-      HTML(
-        "
-    /* Force horizontal legend arrangement */
-.js-plotly-plot .plotly .legend .traces {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: wrap !important;
-}
-
-.js-plotly-plot .plotly .legend .traces .trace {
-  display: inline-block !important;
-  margin-right: 15px !important;
-}
-    ")
-    )
-  ),
   #includeCSS("www/style.css"),
   title = "Human Footprint Index Dashboard",
   sidebar = sidebar(
@@ -180,47 +172,57 @@ ui <- page_sidebar(
       card_header("Mean Annual Change"),
       plotlyOutput("timeSeries", height = "300px")
     ),
-    width = "450px"
+    width = "500px"
   ),
   
   ## Map content -------------
-  card(
-    full_screen = TRUE,
-    height = "800px",
-    leafletOutput("map", height = "100%")
-  )
+  leafletOutput("map", height = "100%")
+ 
 )
 
 # SERVER ------------------------------------------
 server <- function(input, output, session) {
-  
   # Reactive filtered data
   filtered_data <- reactive({
-    locations %>% 
+    locations %>%
       filter(year == input$year)
   })
   
   # reactive color palette for country summaries
   country_pal <- reactive({
-    
     var <- paste0(input$year, "_int16")
     
-    colorNumeric(
-      colorRampPalette(c("#fee0d2", "#fcbba1", "#fc9272", "#fb6a4a", "#ef3b2c", "#cb181d", "#a50f15", "#67000d"))(100),
-      domain = countries[[var]]
-    )
-
+    colorNumeric(colorRampPalette(
+      c(
+        "#ffffff",
+        "#fcbba1",
+        "#fc9272",
+        "#fb6a4a",
+        "#ef3b2c",
+        "#cb181d",
+        "#a50f15",
+        "#67000d"
+      )
+    )(50), domain = countries[[var]])
+    
   })
   
   # reactive color palette for IPCC summaries
   ipcc_pal <- reactive({
-    
     var <- paste0(input$year, "_int16")
     
-    colorNumeric(
-      colorRampPalette(c("#fee0d2", "#fcbba1", "#fc9272", "#fb6a4a", "#ef3b2c", "#cb181d", "#a50f15", "#67000d"))(100),
-      domain = countries[[var]]
-    )
+    colorNumeric(colorRampPalette(
+      c(
+        "#fee0d2",
+        "#fcbba1",
+        "#fc9272",
+        "#fb6a4a",
+        "#ef3b2c",
+        "#cb181d",
+        "#a50f15",
+        "#67000d"
+      )
+    )(10), domain = ipcc[[var]])
     
   })
   
@@ -228,14 +230,16 @@ server <- function(input, output, session) {
   # Map output -------------------------------------
   output$map <- renderLeaflet({
     leaflet() %>%
-      #addProviderTiles("OpenStreetMap") %>% 
+      #addProviderTiles("OpenStreetMap") %>%
       addProviderTiles(providers$CartoDB.DarkMatter) %>%
-      setView(lng = 0, lat = 30, zoom = 2)
+      setView(lng = 0,
+              lat = 30,
+              zoom = 2)
     
   })
   
   # this makes it so the proxy map is rendered in the background, otherwise the map is empty when you first navigate to this page
-  outputOptions(output, "map", suspendWhenHidden=FALSE)
+  outputOptions(output, "map", suspendWhenHidden = FALSE)
   
   # change tile url based on selected year and map type
   url <- reactive({
@@ -268,7 +272,6 @@ server <- function(input, output, session) {
   
   ## Update map layer -------------------------------
   observe({
-    
     map_proxy <- leafletProxy("map")
     
     # Clear all groups initially
@@ -278,41 +281,56 @@ server <- function(input, output, session) {
     # # Add base tile layer if a URL is provided
     if (!is.null(url())) {
       map_proxy %>%
-        addTiles(
-          url(),
-          group = "hfi",
-          options = tileOptions(maxNativeZoom = 12)
-        )
+        addTiles(url(),
+                 group = "hfi",
+                 options = tileOptions(maxNativeZoom = 12))
     }
     
     
     # Add or remove Country layer
     if (input$add_country) {
-      map_proxy %>%
-        addPolygons(
-          data = countries,
-          fillColor = ~country_pal()(get(paste0(input$year, "_int16"))),
-          fillOpacity = 0.95,
-          weight = 0.5,
-          color = "#444444",
-          group = "Countries",
-          popup = ~ paste(
-            "<strong>", name, "</strong>",
-            "<br>", paste(input$year, "Mean HFI:"),
-            round(get(paste0(input$year, "_int16")), 2)
+      withProgress({
+        #Sys.sleep(5)  # Simulate loading time
+        
+        # Simulate steps in data loading
+        for (i in 1:10) {
+          incProgress(1 / 10, message = "Loading shapefile...")
+          Sys.sleep(0.5)  # Simulate work
+        }
+        
+        map_proxy %>%
+          addPolygons(
+            data = countries,
+            fillColor = ~ country_pal()(get(paste0(
+              input$year, "_int16"
+            ))),
+            fillOpacity = 0.95,
+            weight = 0.5,
+            color = "#444444",
+            group = "Countries",
+            popup = ~ paste(
+              "<strong>",
+              name,
+              "</strong>",
+              "<br>",
+              paste(input$year, "Mean HFI:"),
+              round(get(paste0(
+                input$year, "_int16"
+              )), 2)
+            )
+          ) %>%
+          addLegend(
+            position = "bottomright",
+            pal = country_pal(),
+            values = countries[[paste0(input$year, "_int16")]],
+            title = "Average HFI by Country",
+            group = "Countries"
           )
-        ) %>%
-        addLegend(
-          position = "bottomright",
-          pal = country_pal(),
-          values = countries[[paste0(input$year, "_int16")]],
-          title = "Average HFI by Country",
-          group = "Countries"
-        )
+      })
     } else {
       # Clear group and control
       map_proxy %>%
-        clearGroup("Countries") 
+        clearGroup("Countries")
     }
     
     # Add or remove IPCC layer
@@ -320,15 +338,22 @@ server <- function(input, output, session) {
       map_proxy %>%
         addPolygons(
           data = ipcc,
-          fillColor = ~ipcc_pal()(get(paste0(input$year, "_int16"))),
+          fillColor = ~ ipcc_pal()(get(paste0(
+            input$year, "_int16"
+          ))),
           fillOpacity = 0.85,
           weight = 0.5,
           color = "#444444",
           group = "IPCC",
           popup = ~ paste(
-            "<strong>", NAME, "</strong>",
-            "<br>", paste(input$year, "Mean HFI:"),
-            round(get(paste0(input$year, "_int16")), 2)
+            "<strong>",
+            NAME,
+            "</strong>",
+            "<br>",
+            paste(input$year, "Mean HFI:"),
+            round(get(paste0(
+              input$year, "_int16"
+            )), 2)
           )
         ) %>%
         addLegend(
@@ -341,10 +366,10 @@ server <- function(input, output, session) {
     } else {
       # Clear group and control
       map_proxy %>%
-        clearGroup("IPCC") 
+        clearGroup("IPCC")
     }
-   
-
+    
+    
   })
   
   
@@ -397,7 +422,9 @@ server <- function(input, output, session) {
   observeEvent(input$reset_view, {
     # Reset the map view to global view
     leafletProxy("map") %>%
-      setView(lng = 0, lat = 30, zoom = 2)
+      setView(lng = 0,
+              lat = 30,
+              zoom = 2)
     
     # Also optionally clear the country/region selection
     if (input$level == "Country") {
@@ -410,9 +437,9 @@ server <- function(input, output, session) {
   
   # Chart Outputs -------------------------------------------------
   
-  # ##  country histogram 
+  # ##  country histogram
   # output$country_histogram <- renderPlotly({
-  #   
+  #
   #   # Calculate histogram bins for all countries
   #   hist_data <- reactive({
   #     countries %>%
@@ -422,7 +449,7 @@ server <- function(input, output, session) {
   #         input$year, "_int16"
   #       ))))
   #   })
-  # 
+  #
   #   # Create the plot
   #   p <- plot_ly(
   #     data = hist_data(),
@@ -440,14 +467,14 @@ server <- function(input, output, session) {
   #       margin = list(l = 5, r = 5, t = 40, b = 5),  # Reduces margins, slight top margin for spacing
   #       legend = list(orientation = "h", x = 0, y = 0.97, xanchor = "left", yanchor = "bottom")  # Moves legend closer to the chart
   #     )
-  #   
+  #
   #   return(p)
-  #   
+  #
   # })
-  # 
-  # ## ipcc histogram 
+  #
+  # ## ipcc histogram
   # output$ipcc_histogram <- renderPlotly({
-  #   
+  #
   #   # Calculate histogram bins for all countries
   #   hist_data <- reactive({
   #     ipcc %>%
@@ -458,7 +485,7 @@ server <- function(input, output, session) {
   #         input$year, "_int16"
   #       ))))
   #   })
-  #   
+  #
   #   # Create the plot
   #   p <- plot_ly(
   #     data = hist_data(),
@@ -496,9 +523,9 @@ server <- function(input, output, session) {
   #         itemstacking = "false"
   #       )
   #     )
-  #   
+  #
   #   return(p)
-  #   
+  #
   # })
   
   ## Data ------------------------------------------------
@@ -508,7 +535,9 @@ server <- function(input, output, session) {
     countries %>%
       st_drop_geometry() %>%
       group_by(name, type) %>%
-      summarise(value = mean(get(paste0(input$year, "_int16"))))
+      summarise(value = mean(get(paste0(
+        input$year, "_int16"
+      ))))
   })
   
   # Calculate IPCC data (used in multiple visualizations)
@@ -516,7 +545,9 @@ server <- function(input, output, session) {
     ipcc %>%
       st_drop_geometry() %>%
       group_by(NAME, NAME_short) %>%
-      summarise(value = mean(get(paste0(input$year, "_int16"))))
+      summarise(value = mean(get(paste0(
+        input$year, "_int16"
+      ))))
   })
   
   
@@ -529,14 +560,12 @@ server <- function(input, output, session) {
     bin_labels <- paste0(bin_breaks[-length(bin_breaks)], "-", bin_breaks[-1] - 1)
     
     data <- country_data() %>%
-      mutate(
-        bin_group = cut(
-          value, 
-          breaks = bin_breaks,
-          labels = bin_labels,
-          include.lowest = TRUE
-        )
-      )
+      mutate(bin_group = cut(
+        value,
+        breaks = bin_breaks,
+        labels = bin_labels,
+        include.lowest = TRUE
+      ))
     
     # Count countries in each bin
     bin_counts <- data %>%
@@ -551,22 +580,21 @@ server <- function(input, output, session) {
     # Create a cleaner histogram visualization
     p <- plot_ly(
       bin_counts,
-      x = ~bin_group,
-      y = ~count,
+      x = ~ bin_group,
+      y = ~ count,
       type = "bar",
-      marker = list(
-        color = colors,
-        line = list(width = 1, color = "#444")
-      )
+      marker = list(color = colors, line = list(
+        width = 1, color = "#444"
+      ))
     ) %>%
       layout(
         title = list(
-          text = "Distribution of Countries by HFI Value",
+          text = "Distribution of mean HFI per country",
           font = list(size = 14, color = "#FFFFFF"),
-          y = 0.85
+          y = 0.9
         ),
         xaxis = list(
-          title = "HFI Value Range",
+          title = "Mean HFI",
           showgrid = FALSE,
           categoryorder = "array",
           categoryarray = bin_labels,
@@ -589,7 +617,12 @@ server <- function(input, output, session) {
           y = 0.8,
           x = 0
         ),
-        margin = list(l = 5, r = 5, t = 60, b = 5) # add space to top
+        margin = list(
+          l = 5,
+          r = 5,
+          t = 60,
+          b = 5
+        ) # add space to top
       )
     
     # Add annotation for selected country if applicable
@@ -621,19 +654,17 @@ server <- function(input, output, session) {
   
   # IPCC heatmap visualization
   output$ipcc_heatmap <- renderPlotly({
-    # Create bins in increments of 10
-    bin_breaks <- seq(0, 100, by = 10)
+    # Create bins in increments of 5
+    bin_breaks <- seq(0, max(ipcc_data()$value) + 5, by = 5)
     bin_labels <- paste0(bin_breaks[-length(bin_breaks)], "-", bin_breaks[-1] - 1)
     
     data <- ipcc_data() %>%
-      mutate(
-        bin_group = cut(
-          value, 
-          breaks = bin_breaks,
-          labels = bin_labels,
-          include.lowest = TRUE
-        )
-      )
+      mutate(bin_group = cut(
+        value,
+        breaks = bin_breaks,
+        labels = bin_labels,
+        include.lowest = TRUE
+      ))
     
     # Count regions in each bin
     bin_counts <- data %>%
@@ -648,22 +679,21 @@ server <- function(input, output, session) {
     # Create a cleaner histogram visualization
     p <- plot_ly(
       bin_counts,
-      x = ~bin_group,
-      y = ~count,
+      x = ~ bin_group,
+      y = ~ count,
       type = "bar",
-      marker = list(
-        color = colors,
-        line = list(width = 1, color = "#444")
-      )
+      marker = list(color = colors, line = list(
+        width = 1, color = "#444"
+      ))
     ) %>%
       layout(
         title = list(
-          text = "Distribution of IPCC Regions by HFI Value",
+          text = "Distribution of Mean HFI per IPCC Region",
           font = list(size = 14, color = "#FFFFFF"),
-          y = 0.85
+          y = 0.9
         ),
         xaxis = list(
-          title = "HFI Value Range",
+          title = "Mean HFI",
           showgrid = FALSE,
           categoryorder = "array",
           categoryarray = bin_labels,
@@ -686,7 +716,12 @@ server <- function(input, output, session) {
           y = 0.8,
           x = 0
         ),
-        margin = list(l = 5, r = 5, t = 60, b = 5) # add space to top
+        margin = list(
+          l = 5,
+          r = 5,
+          t = 60,
+          b = 5
+        ) # add space to top
       )
     
     # Add annotation for selected region if applicable
@@ -726,7 +761,7 @@ server <- function(input, output, session) {
   output$country_high_low <- renderPlotly({
     data <- country_data() %>%
       #filter out dependencies etc
-      filter(type %in% c("Country", "Sovereign country", "Sovereignty")) %>% 
+      filter(type %in% c("Country", "Sovereign country", "Sovereignty")) %>%
       arrange(desc(value))
     
     # Get top 10 and bottom 10
@@ -750,27 +785,30 @@ server <- function(input, output, session) {
     
     # Add a group column for coloring
     display_data <- display_data %>%
-      mutate(group = case_when(
-        name %in% top10$name & name == input$country ~ "Selected Top 10",
-        name %in% bottom10$name & name == input$country ~ "Selected Bottom 10",
-        name %in% top10$name ~ "Top 10",
-        name %in% bottom10$name ~ "Bottom 10",
-        TRUE ~ "Selected"
-      ))
+      mutate(
+        group = case_when(
+          name %in% top10$name & name == input$country ~ "Selected Top 10",
+          name %in% bottom10$name &
+            name == input$country ~ "Selected Bottom 10",
+          name %in% top10$name ~ "Top 10",
+          name %in% bottom10$name ~ "Bottom 10",
+          TRUE ~ "Selected"
+        )
+      )
     
     # Create a horizontal bar chart
     p <- plot_ly(
       display_data,
-      y = ~reorder(name, value),
-      x = ~value,
+      y = ~ reorder(name, value),
+      x = ~ value,
       type = "bar",
       orientation = "h",
-      color = ~group,
+      color = ~ group,
       colors = c(
-        "Top 10" = "#BC0032", 
-        "Bottom 10" = "#00bc8c", 
-        "Selected" = "#f39c12", 
-        "Selected Top 10" = "#e74c3c", 
+        "Top 10" = "#BC0032",
+        "Bottom 10" = "#00bc8c",
+        "Selected" = "#f39c12",
+        "Selected Top 10" = "#e74c3c",
         "Selected Bottom 10" = "#2ecc71"
       )
     ) %>%
@@ -796,22 +834,22 @@ server <- function(input, output, session) {
           dtick = 1 # Force a tick for each position
         ),
         margin = list(
-                  l = 1,
-                  r = 1,
-                  t = 70,
-                  b = 5
-                ),
-                # Reduces margins, slight top margin for spacing
-                legend = list(
-                  orientation = "h",
-                  x = 0.5,
-                  xanchor = "center",
-                  y = 0.98,
-                  yanchor = "bottom",
-                  itemstacking = "false",
-                  itemwidth = 50,
-                  bgcolor = "rgba(0, 0, 0, 0)"
-                ),
+          l = 1,
+          r = 1,
+          t = 70,
+          b = 5
+        ),
+        # Reduces margins, slight top margin for spacing
+        legend = list(
+          orientation = "h",
+          x = 0.5,
+          xanchor = "center",
+          y = 0.98,
+          yanchor = "bottom",
+          itemstacking = "false",
+          itemwidth = 50,
+          bgcolor = "rgba(0, 0, 0, 0)"
+        ),
         plot_bgcolor = "#222222",
         paper_bgcolor = "#222222",
         font = list(color = "#FFFFFF")
@@ -826,7 +864,7 @@ server <- function(input, output, session) {
       arrange(desc(value))
     
     # Get top 5 and bottom 5 (or all if less than 20 total)
-    max_regions <- min(5, floor(nrow(data)/2))
+    max_regions <- min(5, floor(nrow(data) / 2))
     top5 <- head(data, max_regions)
     bottom5 <- tail(data, max_regions)
     
@@ -847,28 +885,30 @@ server <- function(input, output, session) {
     
     # Add a group column for coloring
     display_data <- display_data %>%
-      mutate(group = case_when(
-        NAME %in% top5$NAME & NAME == input$ipcc ~ "Selected Top",
-        NAME %in% bottom5$NAME & NAME == input$ipcc ~ "Selected Bottom",
-        NAME %in% top5$NAME ~ "Top Regions",
-        NAME %in% bottom5$NAME ~ "Bottom Regions",
-        TRUE ~ "Selected"
-      ))
+      mutate(
+        group = case_when(
+          NAME %in% top5$NAME & NAME == input$ipcc ~ "Selected Top",
+          NAME %in% bottom5$NAME &
+            NAME == input$ipcc ~ "Selected Bottom",
+          NAME %in% top5$NAME ~ "Top Regions",
+          NAME %in% bottom5$NAME ~ "Bottom Regions",
+          TRUE ~ "Selected"
+        )
+      )
     
     # Create a horizontal bar chart
     p <- plot_ly(
       display_data,
-      y = ~reorder(NAME_short, value),
-      x = ~value,
+      y = ~ reorder(NAME_short, value),
+      x = ~ value,
       type = "bar",
       orientation = "h",
-      #width = 0.8,
-      color = ~group,
+      color = ~ group,
       colors = c(
-        "Top Regions" = "#BC0032", 
-        "Bottom Regions" = "#00bc8c", 
-        "Selected" = "#f39c12", 
-        "Selected Top" = "#e74c3c", 
+        "Top Regions" = "#BC0032",
+        "Bottom Regions" = "#00bc8c",
+        "Selected" = "#f39c12",
+        "Selected Top" = "#e74c3c",
         "Selected Bottom" = "#2ecc71"
       )
     ) %>%
@@ -893,20 +933,24 @@ server <- function(input, output, session) {
           showticklabels = TRUE,
           dtick = 1 # Force a tick for each position
         ),
-        bargap = 0.2, # Remove gaps between bars
-        bargroupgap = 0, # Remove gaps between bar groups
-        barmode = "stack", # Ensures bars are directly adjacent
+        bargap = 0.2,
+        # Remove gaps between bars
+        bargroupgap = 0,
+        # Remove gaps between bar groups
+        barmode = "stack",
+        # Ensures bars are directly adjacent
         margin = list(
           l = 1,
           r = 1,
-          t = 90,
+          t = 60,
           b = 1
-        ),# Reduces margins, slight top margin for spacing
+        ),
+        # Reduces margins, slight top margin for spacing
         legend = list(
           orientation = "h",
           x = 1,
           xanchor = "right",
-          y = 0.95,
+          y = 0,
           yanchor = "bottom",
           itemwidth = 40,
           itemsizing = "constant",
@@ -921,7 +965,7 @@ server <- function(input, output, session) {
     return(p)
   })
   
-  # Country time series
+  ##  Country time series ---------------------------
   output$country_time_series <- renderPlotly({
     req(input$country)
     
@@ -931,28 +975,24 @@ server <- function(input, output, session) {
     
     # Add some trend for visual appeal
     for (i in 2:length(values)) {
-      values[i] <- values[i-1] + rnorm(1, 0, 3)
-      if (values[i] < 10) values[i] <- 10
-      if (values[i] > 90) values[i] <- 90
+      values[i] <- values[i - 1] + rnorm(1, 0, 3)
+      if (values[i] < 10)
+        values[i] <- 10
+      if (values[i] > 90)
+        values[i] <- 90
     }
     
-    ts_data <- data.frame(
-      year = years_data,
-      value = values
-    )
+    ts_data <- data.frame(year = years_data, value = values)
     
     # Global average for comparison
-    global_data <- data.frame(
-      year = years_data,
-      value = runif(length(years_data), 40, 60)
-    )
+    global_data <- data.frame(year = years_data, value = runif(length(years_data), 40, 60))
     
     # Create time series plot
     p <- plot_ly() %>%
       add_trace(
         data = ts_data,
-        x = ~year,
-        y = ~value,
+        x = ~ year,
+        y = ~ value,
         type = "scatter",
         mode = "lines+markers",
         name = input$country,
@@ -960,12 +1000,16 @@ server <- function(input, output, session) {
       ) %>%
       add_trace(
         data = global_data,
-        x = ~year,
-        y = ~value,
+        x = ~ year,
+        y = ~ value,
         type = "scatter",
         mode = "lines",
         name = "Global Average",
-        line = list(color = "#3498db", width = 2, dash = "dash")
+        line = list(
+          color = "#3498db",
+          width = 2,
+          dash = "dash"
+        )
       ) %>%
       layout(
         title = list(
@@ -1009,36 +1053,32 @@ server <- function(input, output, session) {
     
     # For this example, we'll create sample time series data
     years_data <- years
-    values <- runif(length(years_data), 30, 70) 
+    values <- runif(length(years_data), 30, 70)
     
     # Add some trend for visual appeal
     for (i in 2:length(values)) {
-      values[i] <- values[i-1] + rnorm(1, 0, 2)
-      if (values[i] < 10) values[i] <- 10
-      if (values[i] > 90) values[i] <- 90
+      values[i] <- values[i - 1] + rnorm(1, 0, 2)
+      if (values[i] < 10)
+        values[i] <- 10
+      if (values[i] > 90)
+        values[i] <- 90
     }
     
-    ts_data <- data.frame(
-      year = years_data,
-      value = values
-    )
+    ts_data <- data.frame(year = years_data, value = values)
     
     # Global average for comparison
-    global_data <- data.frame(
-      year = years_data,
-      value = runif(length(years_data), 40, 60)
-    )
+    global_data <- data.frame(year = years_data, value = runif(length(years_data), 40, 60))
     
     # Create time series plot
-    selected_region <- ipcc %>% 
-      filter(NAME == input$ipcc) %>% 
+    selected_region <- ipcc %>%
+      filter(NAME == input$ipcc) %>%
       pull(NAME_short)
     
     p <- plot_ly() %>%
       add_trace(
         data = ts_data,
-        x = ~year,
-        y = ~value,
+        x = ~ year,
+        y = ~ value,
         type = "scatter",
         mode = "lines+markers",
         name = selected_region,
@@ -1046,12 +1086,16 @@ server <- function(input, output, session) {
       ) %>%
       add_trace(
         data = global_data,
-        x = ~year,
-        y = ~value,
+        x = ~ year,
+        y = ~ value,
         type = "scatter",
         mode = "lines",
         name = "Global Average",
-        line = list(color = "#3498db", width = 2, dash = "dash")
+        line = list(
+          color = "#3498db",
+          width = 2,
+          dash = "dash"
+        )
       ) %>%
       layout(
         title = list(
@@ -1097,42 +1141,66 @@ server <- function(input, output, session) {
       summarize(avg_value = mean(value))
     
     # Create Plotly figure
-    plot_ly(avg_data, x = ~year, y = ~avg_value, type = "scatter", mode = "lines+markers",
-            line = list(color = "#00bc8c", width = 2, shape = "linear"),
-            marker = list(color = "#00bc8c", size = 6),
-            name = "Global Mean",legendgroup = "avg", showlegend = FALSE) %>%
+    plot_ly(
+      avg_data,
+      x = ~ year,
+      y = ~ avg_value,
+      type = "scatter",
+      mode = "lines+markers",
+      line = list(
+        color = "#00bc8c",
+        width = 2,
+        shape = "linear"
+      ),
+      marker = list(color = "#00bc8c", size = 6),
+      name = "Global Mean",
+      legendgroup = "avg",
+      showlegend = FALSE
+    ) %>%
       # Highlight selected year
-      add_trace(data = avg_data %>% filter(year == input$year),
-                x = ~year, y = ~avg_value, type = "scatter", mode = "markers",
-                marker = list(color = "#BC0032", size = 8), 
-                name = "Global Mean",legendgroup = "avg", showlegend = TRUE) %>%
+      add_trace(
+        data = avg_data %>% filter(year == input$year),
+        x = ~ year,
+        y = ~ avg_value,
+        type = "scatter",
+        mode = "markers",
+        marker = list(color = "#BC0032", size = 8),
+        name = "Global Mean",
+        legendgroup = "avg",
+        showlegend = TRUE
+      ) %>%
       layout(
         #title = list(text = "Time Series of Average Values", x = 0.5),
         xaxis = list(
-          title = "Year", 
+          title = "Year",
           color = "#FFFFFF",
           tickfont = list(color = "#FFFFFF")
         ),
         yaxis = list(
-          title = "Average HFI", 
+          title = "Average HFI",
           color = "#FFFFFF",
           tickfont = list(color = "#FFFFFF")
         ),
         plot_bgcolor = "#222222",
         paper_bgcolor = "#222222",
         font = list(color = "#FFFFFF"),
-        margin = list(l = 40, r = 40, t = 60, b = 40),
+        margin = list(
+          l = 40,
+          r = 40,
+          t = 60,
+          b = 40
+        ),
         legend = list(
-          orientation = "h", 
-          x = 0.5, 
-          y = -0.2, 
+          orientation = "h",
+          x = 0.5,
+          y = -0.2,
           xanchor = "center",
           font = list(color = "#FFFFFF")
-        ) 
+        )
       )
   })
-
-
+  
+  
 }
 
 shinyApp(ui, server)
