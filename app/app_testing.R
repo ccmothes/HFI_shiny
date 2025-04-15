@@ -1,3 +1,5 @@
+# Modifications to app.R to add a landing page
+
 library(shiny)
 library(shinyWidgets)
 library(shinycssloaders)
@@ -9,7 +11,7 @@ library(ggplot2)
 library(plotly)
 library(sf)
 
-# read in vector layers
+# Read in vector layers
 ipcc <- read_sf("app_data/IPCC_regions/referenceRegions.shp") %>%
   # clean up names and create shortened title
   mutate(
@@ -39,150 +41,321 @@ locations <- data.frame(
 my_theme <- bs_theme(
   version = 5,
   preset = "darkly",
-  bg = "#222222",
-  fg = "#FFFFFF",
+  bg = "#212426",             # Deep navy blue (darker than before)
+  fg = "#E6F1FF",             # Soft blue-white (less harsh than pure white)
   primary = "#00bc8c",
-  secondary = "#BC0032"
+  secondary = "#BC0032", # Magenta (more vibrant and modern than the previous red)
+  info = "#3A86FF",           # Light cyan (for informational elements)
+  warning = "#F6AD55",        # Soft orange (for warnings)
+  danger = "#7B0828",         # Soft red (for errors/danger)
+  success = "#8A6FDF"        # Soft green (for success messages)
+   #bg = "#222222",
+  # fg = "#FFFFFF",
+  # primary = "#00bc8c",
+  # secondary = "#BC0032"
 )
 
 # UI --------------------------------------------
 
-
-ui <- page_sidebar(
-  theme = my_theme,
-  #includeCSS("www/style.css"),
-  title = "Human Footprint Index Dashboard",
-  sidebar = sidebar(
-    radioGroupButtons(
-      "map_type",
-      choices = c("Annual Map", "Change Map"),
-      selected = "Annual Map"
-    ),
-    #title = "Controls",
-    sliderInput(
-      "year",
-      "Select Year:",
-      min = min(years),
-      max = max(years),
-      value = max(years),
-      step = 24,
-      sep = ""
-    ),
-    em("For change maps, must select a year greater than 1999"),
-    ## Regional summaries ------------------
-    accordion(
-      open = FALSE,
-      accordion_panel(
-        "Regional Summaries",
-        radioGroupButtons(
-          "level",
-          "Summarize By:",
-          choices = c("Country", "IPCC Region"),
-          selected = "Country"
-        ),
-        # Reset view button
-        actionButton(
-          "reset_view",
-          "Reset Map View",
-          icon = icon("globe"),
-          class = "btn-primary btn-sm",
-          style = "margin-top: 10px; width: 100%;"
-        ),
-        conditionalPanel(
-          "input.level == 'Country'",
-          materialSwitch("add_country", "Add Layer to Map:", value = FALSE),
-          selectizeInput(
-            "country",
-            "Select Country",
-            choices = unique(countries$name),
-            options = list(
-              placeholder = 'Please select an option below',
-              onInitialize = I('function() { this.setValue(""); }')
-            )
-          ),
-          # plotlyOutput("country_histogram", height = "600px")
-        ),
-        conditionalPanel(
-          "input.level == 'IPCC Region'",
-          materialSwitch("add_ipcc", "Add Layer to Map:", value = FALSE),
-          selectizeInput(
-            "ipcc",
-            "Select IPCC Region",
-            choices = unique(ipcc$NAME),
-            options = list(
-              placeholder = 'Please select an option below',
-              onInitialize = I('function() { this.setValue(""); }')
-            )
-          ),
-          # plotlyOutput("ipcc_histogram", height = "600px")
-        ),
-        ### Tabset viz panel ----------------
-        tabsetPanel(
-          id = "viz_tabs",
-          type = "pills",
-          tabPanel(
-            "Distribution",
-            div(style = "padding-top: 10px;"),
-            conditionalPanel(
-              "input.level == 'Country'",
-              plotlyOutput("country_heatmap", height = "350px")
-            ),
-            conditionalPanel(
-              "input.level == 'IPCC Region'",
-              plotlyOutput("ipcc_heatmap", height = "350px")
-            )
-          ),
-          tabPanel(
-            "High/Low",
-            div(style = "padding-top: 10px;"),
-            conditionalPanel(
-              "input.level == 'Country'",
-              plotlyOutput("country_high_low", height = "350px")
-            ),
-            conditionalPanel(
-              "input.level == 'IPCC Region'",
-              plotlyOutput("ipcc_high_low", height = "300px")
-            )
-          ),
-          tabPanel(
-            "Time Series",
-            div(style = "padding-top: 10px;"),
-            conditionalPanel(
-              "input.level == 'Country' && input.country != ''",
-              plotlyOutput("country_time_series", height = "350px")
-            ),
-            conditionalPanel(
-              "input.level == 'IPCC Region' && input.ipcc != ''",
-              plotlyOutput("ipcc_time_series", height = "350px")
-            ),
-            conditionalPanel(
-              "(input.level == 'Country' && input.country == '') || (input.level == 'IPCC Region' && input.ipcc == '')",
+# Create a navigation function
+landing_page <- function() {
+  page_fluid(
+    theme = my_theme,
+    div(
+      class = "container py-4",
+      style = "max-width: 1200px;",
+      
+      # Header with title and description
+      div(
+        class = "p-4 mb-4 rounded-3 text-center",
+        style = "background-color: #212426;",
+        h1("Human Footprint Index", style = "color: #00bc8c;"),
+        p(class = "lead", "Explore global human impact on the environment through interactive visualization tools and data resources"),
+        p("The Human Footprint Index (HFI) quantifies human influence on the Earth's land surface based on ... {placeholder}")
+      ),
+      
+      # Cards section
+      div(
+        class = "row row-cols-1 row-cols-md-2 g-4",
+        
+        # Card 1: Interactive Data Explorer
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "Interactive Data Explorer"),
+              p(class = "card-text", "Explore the global Human Footprint Index through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."),
               div(
-                style = "text-align: center; padding: 50px 20px;",
-                icon("exclamation-circle", style = "font-size: 30px; color: #BC0032;"),
-                h5("Please select a region to view time series data")
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_explorer", 
+                  "Launch Explorer", 
+                  icon = icon("globe"), 
+                  class = "btn btn-info w-100"
+                )
+              )
+            )
+          )
+        ),
+        
+        # Card 2: Google Earth Engine
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "Google Earth Engine"),
+              p(class = "card-text", "Access the HFI dataset through Google Earth Engine for advanced geospatial analysis and integration with other environmental datasets."),
+              div(
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_gee", 
+                  "Access Earth Engine", 
+                  icon = icon("map"), 
+                  class = "btn btn-warning w-100",
+                  onclick = "window.open('https://earthengine.google.com/', '_blank')"
+                )
+              )
+            )
+          )
+        ),
+        
+        # Card 3: Google API
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "API Access"),
+              p(class = "card-text", "Integrate HFI data into your applications with our Google Cloud API. Fetch specific regions, time periods, or analysis-ready datasets."),
+              div(
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_api", 
+                  "API Documentation", 
+                  icon = icon("code"), 
+                  class = "btn btn-secondary w-100",
+                  onclick = "window.open('https://developers.google.com/earth-engine/datasets/catalog', '_blank')"
+                )
+              )
+            )
+          )
+        ),
+        
+        # Card 4: Raw Data Download
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "Raw Data Download"),
+              p(class = "card-text", "Download the complete HFI dataset in various formats (GeoTIFF, CSV, shapefile) for use in your own GIS software or analysis."),
+              div(
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_download", 
+                  "Download Data", 
+                  icon = icon("download"), 
+                  class = "btn btn-success w-100",
+                  onclick = "window.open('https://mountainscholar.org/home', '_blank')"
+                )
               )
             )
           )
         )
+      ),
+      
+      # Footer
+      div(
+        class = "pt-5 mt-5 text-center",
+        p("Copyright Placeholder © 2025", style = "color: #999;"),
+        p("Citation Placeholder", style = "color: #999;")
       )
-    ),
-    ### Global mean -------------
-    card(
-      full_screen = TRUE,
-      card_header("Mean Annual Change"),
-      plotlyOutput("timeSeries", height = "300px")
-    ),
-    width = "500px"
+    )
+  )
+}
+
+# Main app UI with navigation
+ui <- navbarPage(
+  title = "Human Footprint Index",
+  id = "nav",
+  theme = my_theme,
+  header = tags$style(HTML("
+    /* Reduce gap between navbar and content */
+    .container-fluid {
+      padding-top: 0 !important;
+      margin-top: 0 !important;
+      height: 0 !important
+    }
+    
+    /* Remove default padding from the tab content */
+    .tab-content {
+      padding-top: 0 !important;
+    }
+    
+    /* Adjust spacing for the page_sidebar */
+    .page-sidebar {
+      margin-top: 0 !important;
+    }
+    
+    /* Adjust navbar bottom margin */
+   /* .navbar {
+      margin-bottom: 0 !important;
+    } */
+  ")),
+  tabPanel(
+    "Home",
+    landing_page()
   ),
-  
-  ## Map content -------------
-  leafletOutput("map", height = "100%")
- 
+  tabPanel(
+    "Explorer",
+    page_sidebar(
+      theme = my_theme,
+      title = "Interactive Data Explorer",
+      sidebar = sidebar(
+        radioGroupButtons(
+          "map_type",
+          choices = c("Annual Map", "Change Map"),
+          selected = "Annual Map"
+        ),
+        sliderInput(
+          "year",
+          "Select Year:",
+          min = min(years),
+          max = max(years),
+          value = max(years),
+          step = 24,
+          sep = ""
+        ),
+        em("For change maps, must select a year greater than 1999"),
+        ## Regional summaries ------------------
+        accordion(
+          open = FALSE,
+          accordion_panel(
+            "Regional Summaries",
+            radioGroupButtons(
+              "level",
+              "Summarize By:",
+              choices = c("Country", "IPCC Region"),
+              selected = "Country"
+            ),
+            # Reset view button
+            actionButton(
+              "reset_view",
+              "Reset Map View",
+              icon = icon("globe"),
+              class = "btn-primary btn-sm",
+              style = "margin-top: 10px; width: 100%;"
+            ),
+            conditionalPanel(
+              "input.level == 'Country'",
+              materialSwitch("add_country", "Add Layer to Map:", value = FALSE),
+              selectizeInput(
+                "country",
+                "Select Country",
+                choices = unique(countries$name),
+                options = list(
+                  placeholder = 'Please select an option below',
+                  onInitialize = I('function() { this.setValue(""); }')
+                )
+              )
+            ),
+            conditionalPanel(
+              "input.level == 'IPCC Region'",
+              materialSwitch("add_ipcc", "Add Layer to Map:", value = FALSE),
+              selectizeInput(
+                "ipcc",
+                "Select IPCC Region",
+                choices = unique(ipcc$NAME),
+                options = list(
+                  placeholder = 'Please select an option below',
+                  onInitialize = I('function() { this.setValue(""); }')
+                )
+              )
+            ),
+            ### Tabset viz panel ----------------
+            tabsetPanel(
+              id = "viz_tabs",
+              type = "pills",
+              tabPanel(
+                "Distribution",
+                div(style = "padding-top: 10px;"),
+                conditionalPanel(
+                  "input.level == 'Country'",
+                  plotlyOutput("country_heatmap", height = "350px")
+                ),
+                conditionalPanel(
+                  "input.level == 'IPCC Region'",
+                  plotlyOutput("ipcc_heatmap", height = "350px")
+                )
+              ),
+              tabPanel(
+                "High/Low",
+                div(style = "padding-top: 10px;"),
+                conditionalPanel(
+                  "input.level == 'Country'",
+                  plotlyOutput("country_high_low", height = "350px")
+                ),
+                conditionalPanel(
+                  "input.level == 'IPCC Region'",
+                  plotlyOutput("ipcc_high_low", height = "300px")
+                )
+              ),
+              tabPanel(
+                "Time Series",
+                div(style = "padding-top: 10px;"),
+                conditionalPanel(
+                  "input.level == 'Country' && input.country != ''",
+                  plotlyOutput("country_time_series", height = "350px")
+                ),
+                conditionalPanel(
+                  "input.level == 'IPCC Region' && input.ipcc != ''",
+                  plotlyOutput("ipcc_time_series", height = "350px")
+                ),
+                conditionalPanel(
+                  "(input.level == 'Country' && input.country == '') || (input.level == 'IPCC Region' && input.ipcc == '')",
+                  div(
+                    style = "text-align: center; padding: 50px 20px;",
+                    icon("exclamation-circle", style = "font-size: 30px; color: #BC0032;"),
+                    h5("Please select a region to view time series data")
+                  )
+                )
+              )
+            )
+          )
+        ),
+        ### Global mean -------------
+        card(
+          full_screen = TRUE,
+          card_header("Mean Annual Change"),
+          plotlyOutput("timeSeries", height = "300px")
+        ),
+        width = "500px"
+      ),
+      
+      ## Map content -------------
+      leafletOutput("map", height = "100%")
+    )
+  )
 )
 
 # SERVER ------------------------------------------
 server <- function(input, output, session) {
+  
+  # Navigation handler
+  observeEvent(input$go_to_explorer, {
+    updateNavbarPage(session, "nav", selected = "Explorer")
+  })
+  
   # Reactive filtered data
   filtered_data <- reactive({
     locations %>%
@@ -231,7 +404,6 @@ server <- function(input, output, session) {
   # Map output -------------------------------------
   output$map <- renderLeaflet({
     leaflet() %>%
-      #addProviderTiles("OpenStreetMap") %>%
       addProviderTiles(providers$CartoDB.DarkMatter) %>%
       setView(lng = 0,
               lat = 30,
@@ -435,124 +607,7 @@ server <- function(input, output, session) {
     }
   })
   
-  
   # Chart Outputs -------------------------------------------------
-  
-  # ##  country histogram
-  # output$country_histogram <- renderPlotly({
-  #
-  #   # Calculate histogram bins for all countries
-  #   hist_data <- reactive({
-  #     countries %>%
-  #       st_drop_geometry() %>%
-  #       group_by(name) %>%
-  #       summarise(value = mean(get(paste0(
-  #         input$year, "_int16"
-  #       ))))
-  #   })
-  #
-  #   # Create the plot
-  #   p <- plot_ly(
-  #     data = hist_data(),
-  #     x = ~value,
-  #     y = ~reorder(name, -value),
-  #     type = "bar",
-  #     color = ~ifelse(name == input$country, 'Selected', "All Countries"),
-  #     colors = c("All Countries" = "lightgray", 'Selected' = "red")
-  #   ) %>%
-  #     layout(
-  #       #title = "Value Distribution by Country",
-  #       xaxis = list(title = "Mean HFI"),
-  #       yaxis = list(title = "Country", showticklabels = FALSE),
-  #       barmode = "stack",
-  #       margin = list(l = 5, r = 5, t = 40, b = 5),  # Reduces margins, slight top margin for spacing
-  #       legend = list(orientation = "h", x = 0, y = 0.97, xanchor = "left", yanchor = "bottom")  # Moves legend closer to the chart
-  #     )
-  #
-  #   return(p)
-  #
-  # })
-  #
-  # ## ipcc histogram
-  # output$ipcc_histogram <- renderPlotly({
-  #
-  #   # Calculate histogram bins for all countries
-  #   hist_data <- reactive({
-  #     ipcc %>%
-  #       st_drop_geometry() %>%
-  #       # Remove region ID from labels
-  #       group_by(NAME, NAME_short) %>%
-  #       summarise(Value = mean(get(paste0(
-  #         input$year, "_int16"
-  #       ))))
-  #   })
-  #
-  #   # Create the plot
-  #   p <- plot_ly(
-  #     data = hist_data(),
-  #     x = ~ Value,
-  #     y = ~ reorder(NAME_short, -Value),
-  #     type = "bar",
-  #     color = ~ ifelse(NAME == input$ipcc, "Selected", "All Countries"),
-  #     colors = c(
-  #       "All Countries" = "lightgray",
-  #       "Selected" = "red"
-  #     )
-  #   ) %>%
-  #     layout(
-  #       #title = "Value Distribution by Country",
-  #       xaxis = list(title = "Mean HFI"),
-  #       yaxis = list(
-  #         title = "",
-  #         tickfont = list(size = 10),
-  #         tickangle = -25
-  #       ),
-  #       barmode = "stack",
-  #       margin = list(
-  #         l = 1,
-  #         r = 1,
-  #         t = 25,
-  #         b = 5
-  #       ),
-  #       # Reduces margins, slight top margin for spacing
-  #       legend = list(
-  #         orientation = "h",
-  #         x = 0.5,
-  #         xanchor = "center",
-  #         y = 0.92,
-  #         yanchor = "bottom",
-  #         itemstacking = "false"
-  #       )
-  #     )
-  #
-  #   return(p)
-  #
-  # })
-  
-  ## Data ------------------------------------------------
-  
-  # Calculate country data (used in multiple visualizations)
-  country_data <- reactive({
-    countries %>%
-      st_drop_geometry() %>%
-      group_by(name, type) %>%
-      summarise(value = mean(get(paste0(
-        input$year, "_int16"
-      ))))
-  })
-  
-  # Calculate IPCC data (used in multiple visualizations)
-  ipcc_data <- reactive({
-    ipcc %>%
-      st_drop_geometry() %>%
-      group_by(NAME, NAME_short) %>%
-      summarise(value = mean(get(paste0(
-        input$year, "_int16"
-      ))))
-  })
-  
-  
-  ## Distribution --------------------------
   
   # Country heatmap visualization
   output$country_heatmap <- renderPlotly({
@@ -755,6 +810,26 @@ server <- function(input, output, session) {
     }
     
     return(p)
+  })
+  
+  # Calculate country data (used in multiple visualizations)
+  country_data <- reactive({
+    countries %>%
+      st_drop_geometry() %>%
+      group_by(name, type) %>%
+      summarise(value = mean(get(paste0(
+        input$year, "_int16"
+      ))))
+  })
+  
+  # Calculate IPCC data (used in multiple visualizations)
+  ipcc_data <- reactive({
+    ipcc %>%
+      st_drop_geometry() %>%
+      group_by(NAME, NAME_short) %>%
+      summarise(value = mean(get(paste0(
+        input$year, "_int16"
+      ))))
   })
   
   ## High/Low -------------------
@@ -1200,7 +1275,6 @@ server <- function(input, output, session) {
         )
       )
   })
-  
   
 }
 
