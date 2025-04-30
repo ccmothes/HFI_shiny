@@ -258,3 +258,182 @@ Remove water pixels
 ```{r}
 mask_1999 <- terra::mask(hfi_1999, countries)
 ```
+
+# Time series
+
+Test time series workflow and charts on Mississippi region
+
+```{r}
+ms_ts <- map(list.files("data/mississippi_ts/", full.names = TRUE), terra::rast)
+
+#pull out single raster for testing code
+test <- ms_ts[[1]]
+```
+
+Bar chart, calculate freq of grouped values over time
+
+```{r}
+start <- Sys.time()
+# Classify the raster into groups
+r_classified <- classify(test, rcl=matrix(c(-Inf, 10, 1,  # From 0-100: class 1
+                                       10, 35, 2,  # From 100-200: class 2
+                                       35, Inf, 3), # Above 200: class 3
+                                     ncol=3, byrow=TRUE))
+
+# Calculate frequencies
+freq_table <- freq(r_classified)
+
+# Calculate proportions
+freq_table$proportion <- freq_table$count / sum(freq_table$count)
+
+# Display results
+print(freq_table)
+end <- Sys.time()
+
+end-start #2.405967 secs
+```
+
+## Proportion Time series
+
+```{r}
+# For a list of already loaded rasters
+years <- 1999:2023
+
+# Or for a SpatRaster collection (terra's equivalent of a stack)
+#raster_collection <- sprc(ms_ts)
+
+# Process either list or collection
+results <- data.frame()
+for(i in 1:length(years)) {
+  # For a list
+  r <- ms_ts[[i]]
+  # Or for a collection
+  # r <- raster_collection[[i]]
+  
+  # Continue with classification as in the function above
+  rcl <- matrix(c(-Inf, 10, 1, 10, 35, 2, 35, Inf, 3), ncol=3, byrow=TRUE)
+  r_classified <- classify(r, rcl=rcl)
+  freq_table <- freq(r_classified)
+  freq_table$proportion <- freq_table$count / sum(freq_table$count)
+  freq_table$year <- years[i]
+  freq_table$class <- c("Low", "Medium", "High")[freq_table$value]
+  
+  results <- rbind(results, freq_table)
+}
+
+# Create stacked bar chart
+
+# Convert class to factor with specific order
+results$class <- factor(results$class, levels = c("Low", "Medium", "High"))
+
+
+ggplot(results, aes(x=factor(year), y=proportion, fill=class)) +
+  geom_bar(stat="identity", position="stack") +
+  scale_fill_manual(values = c(
+    "Low" = "#3182bd",     # Darker blue
+    "Medium" = "#41ab5d",  # Green
+    "High" = "#e6550d"     # Orange-red
+  )) +
+  labs(title="Proportional Change Over Time",
+       x="Year",
+       y="Proportion",
+       fill="Class") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  guides(fill = guide_legend(reverse = TRUE)) # Ensure legend order matches factor levels
+```
+
+#### plotly
+
+```{r}
+# Create color vector for classes
+class_colors <- c("Low" = "#1b9e77", "Medium" = "#7570b3", "High" = "#d95f02")
+
+# Create plotly stacked bar chart
+plot_ly(
+  data = results,
+  x = ~year,
+  y = ~proportion,
+  color = ~class,
+  colors = class_colors,
+  type = "bar",
+  hoverinfo = "text",
+  text = ~paste("Class:", class, "<br>Proportion:", round(proportion, 3), "<br>Year:", year)
+) %>%
+  layout(
+    title = "Proportional Change Over Time",
+    xaxis = list(
+      title = "Year", 
+      tickangle = -45,
+      tickmode = "array",
+      tickvals = years,  # Force all years to be shown
+      ticktext = years,  # Labels for the ticks
+      tickfont = list(size = 10)  # Smaller font to fit all values
+    ),
+    yaxis = list(title = "Proportion"),
+    barmode = "stack",
+    legend = list(title = list(text = "Class")),
+    hoverlabel = list(bgcolor = "white"),
+    margin = list(b = 100)  # Increased bottom margin to accommodate labels
+  )
+```
+
+## Heat Map of Density Distributions
+
+```{r}
+years <- 1999:2023
+
+freqs <- map2_df(ms_ts, years, function(x, y){
+  freq(x) %>% select(value, count) %>% mutate(year = y)
+})
+
+# Create heatmap
+plot_ly(
+  data = freqs,
+  x = ~value,
+  y = ~year,
+  z = ~count,
+  type = "heatmap",
+  colorscale = "Viridis"
+) %>%
+  layout(
+    title = "Pixel Value Distribution Heatmap by Year",
+    xaxis = list(title = "Pixel Value"),
+    yaxis = list(
+      title = "Year", 
+      #tickangle = -45,
+      tickmode = "array",
+      tickvals = years,  # Force all years to be shown
+      ticktext = years,  # Labels for the ticks
+      tickfont = list(size = 10)  # Smaller font to fit all values
+    )
+  )
+```
+
+## Ridgeline Plot
+
+```{r}
+# Create plot with smoothed transparent curves colored by year
+ggplotly(ggplot(freqs, aes(x = value, y = count, color = year, group = year)) +
+ geom_line(size = 0.5, alpha = 0.75)+
+  scale_color_viridis_c(option = "turbo", direction = 1) +  # Show only min, middle, max years
+  scale_y_continuous(labels = scientific_format(digits = 2)) +  # Scientific notation
+  scale_x_continuous(breaks = seq(0, max(freqs$value, na.rm = TRUE), by = 10)) +  # X-axis increments of 10
+  labs(
+    title = "Pixel Value Distribution by Year",
+    subtitle = "Smoothed distribution curves with year gradient",
+    x = "Pixel Value",
+    y = "Count", 
+    color = "Year"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    legend.key.height = unit(1, "cm"),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 12),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 12)  # Angled x-axis labels for better readability
+  ))
+```
