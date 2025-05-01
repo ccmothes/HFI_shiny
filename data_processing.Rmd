@@ -265,12 +265,9 @@ Test time series workflow and charts on Mississippi region
 
 ```{r}
 ms_ts <- map(list.files("data/mississippi_ts/", full.names = TRUE), terra::rast)
-
-#pull out single raster for testing code
-test <- ms_ts[[1]]
 ```
 
-Bar chart, calculate freq of grouped values over time
+Benchmarking:
 
 ```{r}
 start <- Sys.time()
@@ -436,4 +433,12 @@ ggplotly(ggplot(freqs, aes(x = value, y = count, color = year, group = year)) +
     axis.title = element_text(size = 12),
     legend.title = element_text(size = 12)  # Angled x-axis labels for better readability
   ))
+```
+
+### Save data for App
+
+```{r}
+write_csv(results, "app/app_data/proportion_timeseries.csv")
+
+write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 ```
