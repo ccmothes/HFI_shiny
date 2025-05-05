@@ -4,6 +4,8 @@ library(shinycssloaders)
 library(leaflet)
 library(bslib)
 library(dplyr)
+library(readr)
+library(scales)
 library(stringr)
 library(ggplot2)
 library(plotly)
@@ -34,6 +36,12 @@ locations <- data.frame(
   year = rep(years, each = 10),
   value = runif(10 * length(years), 10, 100)
 )
+
+# Test time series data
+test_props <- read_csv("app_data/proportion_timeseries.csv") %>% 
+  mutate(class = factor(class, levels = c("Low", "Medium", "High")))
+test_freqs <- read_csv("app_data/distribution_timeseries.csv")
+
 
 # Create a dark theme
 my_theme <- bs_theme(
@@ -149,11 +157,18 @@ ui <- page_sidebar(
             div(style = "padding-top: 10px;"),
             conditionalPanel(
               "input.level == 'Country' && input.country != ''",
-              plotlyOutput("country_time_series", height = "350px")
+              plotlyOutput("country_time_series", height = "350px"),
+              hr(),
+              plotlyOutput("country_time_props", height = "350px"),
+              hr(),
+              plotlyOutput("country_time_heatmap", height = "350px"),
+              hr(),
+              plotlyOutput("country_time_ridgeline", height = "350px")
             ),
             conditionalPanel(
               "input.level == 'IPCC Region' && input.ipcc != ''",
-              plotlyOutput("ipcc_time_series", height = "350px")
+              plotlyOutput("ipcc_time_series", height = "350px"),
+              plotlyOutput("ipcc_proportions", height = "350px")
             ),
             conditionalPanel(
               "(input.level == 'Country' && input.country == '') || (input.level == 'IPCC Region' && input.ipcc == '')",
@@ -178,7 +193,7 @@ ui <- page_sidebar(
   
   ## Map content -------------
   leafletOutput("map", height = "100%")
- 
+  
 )
 
 # SERVER ------------------------------------------
@@ -277,7 +292,8 @@ server <- function(input, output, session) {
     
     # Clear all groups initially
     map_proxy %>%
-      clearControls()
+      clearControls() %>% 
+      clearGroup(c("Countries", "IPCC"))
     
     # # Add base tile layer if a URL is provided
     if (!is.null(url())) {
@@ -966,11 +982,13 @@ server <- function(input, output, session) {
     return(p)
   })
   
-  ##  Country time series ---------------------------
+  ## Time Series --------------------
+  
+  ###  Country time series ---------------------------
   output$country_time_series <- renderPlotly({
     req(input$country)
     
-    # For this example, we'll create sample time series data
+    # Create sample time series data
     years_data <- years
     values <- runif(length(years_data), 30, 70) # Simple random trend
     
@@ -1048,7 +1066,176 @@ server <- function(input, output, session) {
     return(p)
   })
   
-  # IPCC time series (similar structure to country)
+  
+  ### Country Proportion Time series
+  output$country_time_props <- renderPlotly({
+    req(input$country)
+    
+    # Create color vector for classes
+    class_colors <- c("Low" = "#1b9e77", "Medium" = "#7570b3", "High" = "#d95f02")
+    
+    # Create plotly stacked bar chart
+    plot_ly(
+      data = test_props,
+      x = ~year,
+      y = ~proportion,
+      color = ~class,
+      colors = class_colors,
+      type = "bar",
+      hoverinfo = "text",
+      text = ~paste("Class:", class, "<br>Proportion:", round(proportion, 3), "<br>Year:", year)
+    ) %>%
+      layout(
+        title = list(
+          text = "Proportional Change Over Time",
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.95,
+          x = 0.5,  # Center the title (x = 0.5)
+          xanchor = "center"  # Ensure title is centered
+        ),
+        xaxis = list(
+          title = "Year",
+          #tickangle = -45,
+          tickmode = "array",
+          tickvals = years,  # Force all years to be shown
+          ticktext = years,  # Labels for the ticks
+          tickfont = list(size = 10),  # Smaller font to fit all values
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "Human Footprint Index",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        legend = list(
+          orientation = "h",
+          x = 0.5,
+          xanchor = "center",
+          y = -0.3,
+          yanchor = "top",
+          font = list(color = "#FFFFFF"),
+          traceorder = "normal"  # Ensures the order follows the factor levels
+        ),
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        #font = list(color = "#FFFFFF")
+        #yaxis = list(title = "Proportion"),
+        barmode = "stack",
+        #legend = list(title = list(text = "Class")),
+        hoverlabel = list(bgcolor = "white"),
+        margin = list(t = 40, b = 100)  # Increased bottom margin to accommodate labels
+      )
+    
+  })
+  
+  
+  ### Country Frequency Heat Map
+  output$country_time_heatmap <- renderPlotly({
+    
+    plot_ly(
+      data = test_freqs,
+      x = ~value,
+      y = ~year,
+      z = ~count,
+      type = "heatmap",
+      colorscale = "Viridis"
+    ) %>%
+      layout(
+        title = list(
+          text = "Pixel Value Distribution Heatmap by Year",
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.95,
+          x = 0.5,
+          xanchor = "center"
+        ),
+        xaxis = list(
+          title = "Pixel Value",
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
+        ),
+        yaxis = list(
+          title = "Year",
+          tickmode = "array",
+          tickvals = years,
+          ticktext = years,
+          tickfont = list(size = 10, color = "#FFFFFF"),
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF"
+        ),
+        plot_bgcolor = "#222222",
+        paper_bgcolor = "#222222",
+        margin = list(t = 70, b = 50),
+        hoverlabel = list(bgcolor = "white")
+      ) %>%
+      colorbar(
+        title = "Count",
+        titlefont = list(color = "#FFFFFF"),
+        tickfont = list(color = "#FFFFFF")
+      )
+  })
+  
+  
+  ### Country ridgline time series chart
+  
+  output$country_time_ridgeline <- renderPlotly({
+    p <- ggplot(test_freqs, aes(
+      x = value,
+      y = count,
+      color = year,
+      group = year
+    )) +
+      geom_line(size = 0.5, alpha = 0.75) +
+      scale_color_viridis_c(option = "plasma", direction = 1) +
+      scale_y_continuous(labels = scientific_format(digits = 2)) +
+      scale_x_continuous(breaks = seq(0, max(test_freqs$value, na.rm = TRUE), by = 10)) +
+      labs(
+        title = "Pixel Value Distribution by Year",
+        x = "Pixel Value",
+        y = "Count",
+        color = "Year"
+      ) +
+      theme_dark() +
+      theme(
+        plot.background = element_rect(fill = "#222222"),
+        panel.background = element_rect(fill = "#222222"),
+        panel.grid.major = element_line(color = "#444444"),
+        panel.grid.minor = element_blank(),
+        text = element_text(color = "#FFFFFF"),
+        axis.text = element_text(color = "#FFFFFF"),
+        axis.title = element_text(color = "#FFFFFF", size = 12),
+        plot.title = element_text(
+          color = "#FFFFFF",
+          face = "bold",
+          size = 16,
+          hjust = 0.5
+        ),
+        legend.background = element_rect(fill = "#222222"),
+        legend.text = element_text(color = "#FFFFFF"),
+        legend.title = element_text(color = "#FFFFFF", size = 12),
+        legend.key = element_rect(fill = "#222222"),
+        legend.position = "bottom" # Added width to make the legend spread out horizontally
+      )
+    
+    ggplotly(p) %>%
+      layout(
+        paper_bgcolor = "#222222",
+        plot_bgcolor = "#222222",
+        font = list(color = "#FFFFFF"),
+        margin = list(t = 70, b = 100),
+        hoverlabel = list(bgcolor = "white"))
+    
+  })
+  
+  
+  ### IPCC time series (similar structure to country) -----------
   output$ipcc_time_series <- renderPlotly({
     req(input$ipcc)
     
