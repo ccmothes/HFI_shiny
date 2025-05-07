@@ -141,15 +141,15 @@ ui <- page_sidebar(
             )
           ),
           tabPanel(
-            "High/Low",
+            "Similarity",
             div(style = "padding-top: 10px;"),
             conditionalPanel(
               "input.level == 'Country'",
-              plotlyOutput("country_high_low", height = "350px")
+              plotlyOutput("country_similar", height = "350px")
             ),
             conditionalPanel(
               "input.level == 'IPCC Region'",
-              plotlyOutput("ipcc_high_low", height = "300px")
+              plotlyOutput("ipcc_similar", height = "300px")
             )
           ),
           tabPanel(
@@ -773,110 +773,77 @@ server <- function(input, output, session) {
     return(p)
   })
   
-  ## High/Low -------------------
-  # Country High/Low visualization
-  output$country_high_low <- renderPlotly({
+  ## Similarity -------------------
+  # Country HFI similarity visualization
+  output$country_similar <- renderPlotly({
     data <- country_data() %>%
       #filter out dependencies etc
       filter(type %in% c("Country", "Sovereign country", "Sovereignty")) %>%
-      arrange(desc(value))
+      arrange(desc(value)) %>% 
+      ungroup() %>% 
+      mutate(rank = row_number())
     
-    # Get top 10 and bottom 10
-    top10 <- head(data, 10)
-    bottom10 <- tail(data, 10)
-    
-    # Start with top10 and bottom10
-    display_data <- bind_rows(top10, bottom10)
-    
-    # Determine if selected country is already in High/Low 10
-    selected_in_display <- FALSE
-    if (input$country != "") {
-      selected_in_display <- input$country %in% c(top10$name, bottom10$name)
-    }
-    
-    # Add selected country if it exists and isn't already in High/Low 10
-    if (input$country != "" && !selected_in_display) {
-      selected <- data %>% filter(name == input$country)
-      display_data <- bind_rows(top10, selected, bottom10)
-    }
-    
-    # Add a group column for coloring
-    display_data <- display_data %>%
-      mutate(
-        group = case_when(
-          name %in% top10$name & name == input$country ~ "Selected Top 10",
-          name %in% bottom10$name &
-            name == input$country ~ "Selected Bottom 10",
-          name %in% top10$name ~ "Top 10",
-          name %in% bottom10$name ~ "Bottom 10",
-          TRUE ~ "Selected"
+      # filter data to zoom into selected country
+      if (input$country != "") {
+        selected_rank <- data %>% filter(name == input$country) %>% pull(rank)
+        display_data <- data %>% filter(rank %in% seq(selected_rank -
+                                                        5, selected_rank + 5))
+      } else {
+        display_data <- data
+      }
+      
+      
+      # Define color scheme
+        colors <- colorRampPalette(c("#FF4848", "#FFAA33", "#33BB33", "#3399FF"))(251)
+        # Highlight selected country
+        if (input$country != "") {
+          colors[display_data$name == input$country] <- "black"
+        }
+      
+      # Create plotly bar chart
+      p <- plot_ly(
+        data = display_data,
+        x = ~name,
+        y = ~value,
+        type = "bar",
+        marker = list(color = colors),
+        hoverinfo = "text",
+        hovertext = ~paste(
+          "Country:", name, 
+          "<br>HFI:", round(value, 2)
+        )
+      ) #%>% 
+        # add_annotations(
+        #   x = ~name,
+        #   y = ~value,
+        #   text = ~as.character(value),
+        #   textposition = "top center",
+        #   showarrow = FALSE,
+        #   font = list(size = 10)
+        # )
+      
+      # Layout configuration
+      p <- p %>% layout(
+        title = "Mean Human Footprint Index by Country",
+        xaxis = list(
+          title = "",
+          tickangle = 45,
+          categoryorder = "array",
+          categoryarray = display_data$name
+        ),
+        margin = list(b = 100, l = 60, r = 40, t = 80),
+        hoverlabel = list(
+          bgcolor = "white",
+          font = list(family = "Arial", size = 12)
         )
       )
+      
+      return(p)
+    })
     
-    # Create a horizontal bar chart
-    p <- plot_ly(
-      display_data,
-      y = ~ reorder(name, value),
-      x = ~ value,
-      type = "bar",
-      orientation = "h",
-      color = ~ group,
-      colors = c(
-        "Top 10" = "#BC0032",
-        "Bottom 10" = "#00bc8c",
-        "Selected" = "#f39c12",
-        "Selected Top 10" = "#e74c3c",
-        "Selected Bottom 10" = "#2ecc71"
-      )
-    ) %>%
-      layout(
-        title = list(
-          text = "Countries with Highest and Lowest HFI",
-          font = list(size = 14, color = "#FFFFFF"),
-          y = 0.9
-        ),
-        xaxis = list(
-          title = "Human Footprint Index",
-          showgrid = TRUE,
-          gridcolor = "#444",
-          color = "#FFFFFF",
-          tickfont = list(color = "#FFFFFF")
-        ),
-        yaxis = list(
-          title = "",
-          showgrid = FALSE,
-          color = "#FFFFFF",
-          tickfont = list(color = "#FFFFFF", size = 10),
-          showticklabels = TRUE,
-          dtick = 1 # Force a tick for each position
-        ),
-        margin = list(
-          l = 1,
-          r = 1,
-          t = 70,
-          b = 5
-        ),
-        # Reduces margins, slight top margin for spacing
-        legend = list(
-          orientation = "h",
-          x = 0.5,
-          xanchor = "center",
-          y = 0.98,
-          yanchor = "bottom",
-          itemstacking = "false",
-          itemwidth = 50,
-          bgcolor = "rgba(0, 0, 0, 0)"
-        ),
-        plot_bgcolor = "#222222",
-        paper_bgcolor = "#222222",
-        font = list(color = "#FFFFFF")
-      )
-    
-    return(p)
-  })
   
   # IPCC High/Low visualization
-  output$ipcc_high_low <- renderPlotly({
+  output$ipcc_similar <- renderPlotly({
     data <- ipcc_data() %>%
       arrange(desc(value))
     
