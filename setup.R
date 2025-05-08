@@ -26,7 +26,8 @@ packages <- c(
   'rnaturalearth',
   'rnaturalearthdata',
   'geodata',
-  'remotes'
+  'remotes',
+  'scales'
 )
 
 packages <- c(packages)
