@@ -39,7 +39,12 @@ locations <- data.frame(
 
 # Test time series data
 test_props <- read_csv("app_data/proportion_timeseries.csv") %>% 
-  mutate(class = factor(class, levels = c("Low", "Medium", "High")))
+  mutate(class = case_when(class == "Low" ~ "Natural (<10)",
+                           class == "Medium" ~ "Used (>10 & <25)",
+                           class == "High" ~ "Settlements (>25)",
+                           .default = class)) %>% 
+  mutate(class = factor(class, levels = c("Natural (<10)", "Used (>10 & <25)", "Settlements (>25)")))
+
 test_freqs <- read_csv("app_data/distribution_timeseries.csv")
 
 
@@ -161,8 +166,8 @@ ui <- page_sidebar(
               hr(),
               plotlyOutput("country_time_props", height = "350px"),
               hr(),
-              plotlyOutput("country_time_heatmap", height = "350px"),
-              hr(),
+              # plotlyOutput("country_time_heatmap", height = "350px"),
+              # hr(),
               plotlyOutput("country_time_ridgeline", height = "350px")
             ),
             conditionalPanel(
@@ -1039,7 +1044,7 @@ server <- function(input, output, session) {
     req(input$country)
     
     # Create color vector for classes
-    class_colors <- c("Low" = "#1b9e77", "Medium" = "#7570b3", "High" = "#d95f02")
+    class_colors <- c("Natural (<10)" = "#1b9e77", "Used (>10 & <25)" = "#7570b3", "Settlements (>25)" = "#d95f02")
     
     # Create plotly stacked bar chart
     plot_ly(
@@ -1102,72 +1107,71 @@ server <- function(input, output, session) {
   
   
   ### Country Frequency Heat Map
-  output$country_time_heatmap <- renderPlotly({
-    
-    plot_ly(
-      data = test_freqs,
-      x = ~value,
-      y = ~year,
-      z = ~count,
-      type = "heatmap",
-      colorscale = "Viridis"
-    ) %>%
-      layout(
-        title = list(
-          text = "Pixel Value Distribution Heatmap by Year",
-          font = list(size = 14, color = "#FFFFFF"),
-          y = 0.95,
-          x = 0.5,
-          xanchor = "center"
-        ),
-        xaxis = list(
-          title = "Pixel Value",
-          showgrid = TRUE,
-          gridcolor = "#444",
-          color = "#FFFFFF",
-          tickfont = list(color = "#FFFFFF")
-        ),
-        yaxis = list(
-          title = "Year",
-          tickmode = "array",
-          tickvals = years,
-          ticktext = years,
-          tickfont = list(size = 10, color = "#FFFFFF"),
-          showgrid = TRUE,
-          gridcolor = "#444",
-          color = "#FFFFFF"
-        ),
-        plot_bgcolor = "#222222",
-        paper_bgcolor = "#222222",
-        margin = list(t = 70, b = 50),
-        hoverlabel = list(bgcolor = "white")
-      ) %>%
-      colorbar(
-        title = "Count",
-        titlefont = list(color = "#FFFFFF"),
-        tickfont = list(color = "#FFFFFF")
-      )
-  })
-  
+  # output$country_time_heatmap <- renderPlotly({
+  #   
+  #   plot_ly(
+  #     data = test_freqs,
+  #     x = ~value,
+  #     y = ~year,
+  #     z = ~count,
+  #     type = "heatmap",
+  #     colorscale = "Viridis"
+  #   ) %>%
+  #     layout(
+  #       title = list(
+  #         text = "Pixel Value Distribution Heatmap by Year",
+  #         font = list(size = 14, color = "#FFFFFF"),
+  #         y = 0.95,
+  #         x = 0.5,
+  #         xanchor = "center"
+  #       ),
+  #       xaxis = list(
+  #         title = "Pixel Value",
+  #         showgrid = TRUE,
+  #         gridcolor = "#444",
+  #         color = "#FFFFFF",
+  #         tickfont = list(color = "#FFFFFF")
+  #       ),
+  #       yaxis = list(
+  #         title = "Year",
+  #         tickmode = "array",
+  #         tickvals = years,
+  #         ticktext = years,
+  #         tickfont = list(size = 10, color = "#FFFFFF"),
+  #         showgrid = TRUE,
+  #         gridcolor = "#444",
+  #         color = "#FFFFFF"
+  #       ),
+  #       plot_bgcolor = "#222222",
+  #       paper_bgcolor = "#222222",
+  #       margin = list(t = 70, b = 50),
+  #       hoverlabel = list(bgcolor = "white")
+  #     ) %>%
+  #     colorbar(
+  #       title = "Count",
+  #       titlefont = list(color = "#FFFFFF"),
+  #       tickfont = list(color = "#FFFFFF")
+  #     )
+  # })
+  # 
   
   ### Country ridgline time series chart
   
   output$country_time_ridgeline <- renderPlotly({
-    p <- ggplot(test_freqs, aes(
+    p <- ggplot(test_freqs %>% filter(year == input$year), aes(
       x = value,
-      y = count,
-      color = year,
-      group = year
+      y = count
+     #color = year
+      #group = year
     )) +
-      geom_line(size = 0.5, alpha = 0.75) +
-      scale_color_viridis_c(option = "plasma", direction = 1) +
+      geom_line(size = 0.5, alpha = 0.75, color = "yellow") +
+      #scale_color_viridis_c(option = "plasma", direction = 1) +
       scale_y_continuous(labels = scientific_format(digits = 2)) +
       scale_x_continuous(breaks = seq(0, max(test_freqs$value, na.rm = TRUE), by = 10)) +
       labs(
-        title = "Pixel Value Distribution by Year",
+        title = "Pixel Value Distribution for selected year",
         x = "Pixel Value",
-        y = "Count",
-        color = "Year"
+        y = "Count"
       ) +
       theme_dark() +
       theme(
@@ -1180,15 +1184,15 @@ server <- function(input, output, session) {
         axis.title = element_text(color = "#FFFFFF", size = 12),
         plot.title = element_text(
           color = "#FFFFFF",
-          face = "bold",
-          size = 16,
+          #face = "bold",
+          size = 12,
           hjust = 0.5
         ),
         legend.background = element_rect(fill = "#222222"),
         legend.text = element_text(color = "#FFFFFF"),
         legend.title = element_text(color = "#FFFFFF", size = 12),
         legend.key = element_rect(fill = "#222222"),
-        legend.position = "bottom" # Added width to make the legend spread out horizontally
+        legend.position = "none" # Added width to make the legend spread out horizontally
       )
     
     ggplotly(p) %>%
