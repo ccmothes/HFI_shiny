@@ -39,7 +39,12 @@ locations <- data.frame(
 
 # Test time series data
 test_props <- read_csv("app_data/proportion_timeseries.csv") %>% 
-  mutate(class = factor(class, levels = c("Low", "Medium", "High")))
+  mutate(class = case_when(class == "Low" ~ "Natural (<10)",
+                           class == "Medium" ~ "Used (>10 & <25)",
+                           class == "High" ~ "Settlements (>25)",
+                           .default = class)) %>% 
+  mutate(class = factor(class, levels = c("Natural (<10)", "Used (>10 & <25)", "Settlements (>25)")))
+
 test_freqs <- read_csv("app_data/distribution_timeseries.csv")
 
 
@@ -161,8 +166,8 @@ ui <- page_sidebar(
               hr(),
               plotlyOutput("country_time_props", height = "350px"),
               hr(),
-              plotlyOutput("country_time_heatmap", height = "350px"),
-              hr(),
+              # plotlyOutput("country_time_heatmap", height = "350px"),
+              # hr(),
               plotlyOutput("country_time_ridgeline", height = "350px")
             ),
             conditionalPanel(
@@ -794,10 +799,10 @@ server <- function(input, output, session) {
       
       
       # Define color scheme
-        colors <- colorRampPalette(c("#FF4848", "#FFAA33", "#33BB33", "#3399FF"))(251)
+    colors <- colorRampPalette(c( "#FDE725", "#35B779","#31688E", "#440154"))(251)
         # Highlight selected country
         if (input$country != "") {
-          colors[display_data$name == input$country] <- "black"
+          colors[display_data$name == input$country] <- "#FF6B6B"
         }
       
       # Create plotly bar chart
@@ -824,131 +829,155 @@ server <- function(input, output, session) {
       
       # Layout configuration
       p <- p %>% layout(
-        title = "Mean Human Footprint Index by Country",
+        title = list(
+          text = "Mean Human Footprint Index by Country",
+          font = list(size = 14, color = "#FFFFFF"),
+          y = 0.95
+        ),
         xaxis = list(
           title = "",
           tickangle = 45,
           categoryorder = "array",
-          categoryarray = display_data$name
+          categoryarray = display_data$name,
+          showgrid = TRUE,
+          gridcolor = "#444",
+          color = "#FFFFFF",
+          tickfont = list(color = "#FFFFFF")
         ),
-        margin = list(b = 100, l = 60, r = 40, t = 80),
+        margin = list(
+          b = 100,
+          l = 60,
+          r = 40,
+          t = 80
+        ),
         hoverlabel = list(
           bgcolor = "white",
           font = list(family = "Arial", size = 12)
-        )
-      )
-      
-      return(p)
-    })
-    
-  
-  # IPCC High/Low visualization
-  output$ipcc_similar <- renderPlotly({
-    data <- ipcc_data() %>%
-      arrange(desc(value))
-    
-    # Get top 5 and bottom 5 (or all if less than 20 total)
-    max_regions <- min(5, floor(nrow(data) / 2))
-    top5 <- head(data, max_regions)
-    bottom5 <- tail(data, max_regions)
-    
-    # Start with top10 and bottom10
-    display_data <- bind_rows(top5, bottom5)
-    
-    # Determine if selected region is already in High/Low
-    selected_in_display <- FALSE
-    if (input$ipcc != "") {
-      selected_in_display <- input$ipcc %in% c(top5$NAME, bottom5$NAME)
-    }
-    
-    # Add selected region if it exists and isn't already in High/Low
-    if (input$ipcc != "" && !selected_in_display) {
-      selected <- data %>% filter(NAME == input$ipcc)
-      display_data <- bind_rows(top5, selected, bottom5)
-    }
-    
-    # Add a group column for coloring
-    display_data <- display_data %>%
-      mutate(
-        group = case_when(
-          NAME %in% top5$NAME & NAME == input$ipcc ~ "Selected Top",
-          NAME %in% bottom5$NAME &
-            NAME == input$ipcc ~ "Selected Bottom",
-          NAME %in% top5$NAME ~ "Top Regions",
-          NAME %in% bottom5$NAME ~ "Bottom Regions",
-          TRUE ~ "Selected"
-        )
-      )
-    
-    # Create a horizontal bar chart
-    p <- plot_ly(
-      display_data,
-      y = ~ reorder(NAME_short, value),
-      x = ~ value,
-      type = "bar",
-      orientation = "h",
-      color = ~ group,
-      colors = c(
-        "Top Regions" = "#BC0032",
-        "Bottom Regions" = "#00bc8c",
-        "Selected" = "#f39c12",
-        "Selected Top" = "#e74c3c",
-        "Selected Bottom" = "#2ecc71"
-      )
-    ) %>%
-      layout(
-        title = list(
-          text = "IPCC Regions with Highest and Lowest HFI",
-          font = list(size = 14, color = "#FFFFFF"),
-          y = 0.9
         ),
-        xaxis = list(
+        yaxis = list(
           title = "Human Footprint Index",
           showgrid = TRUE,
           gridcolor = "#444",
           color = "#FFFFFF",
           tickfont = list(color = "#FFFFFF")
         ),
-        yaxis = list(
-          title = "",
-          showgrid = FALSE,
-          color = "#FFFFFF",
-          tickfont = list(color = "#FFFFFF", size = 12),
-          showticklabels = TRUE,
-          dtick = 1 # Force a tick for each position
-        ),
-        bargap = 0.2,
-        # Remove gaps between bars
-        bargroupgap = 0,
-        # Remove gaps between bar groups
-        barmode = "stack",
-        # Ensures bars are directly adjacent
-        margin = list(
-          l = 1,
-          r = 1,
-          t = 60,
-          b = 1
-        ),
-        # Reduces margins, slight top margin for spacing
-        legend = list(
-          orientation = "h",
-          x = 1,
-          xanchor = "right",
-          y = 0,
-          yanchor = "bottom",
-          itemwidth = 40,
-          itemsizing = "constant",
-          bgcolor = "rgba(0, 0, 0, 0)",
-          traceorder = "normal"  # Add this line
-        ),
         plot_bgcolor = "#222222",
         paper_bgcolor = "#222222",
         font = list(color = "#FFFFFF")
       )
+      
+      
+      return(p)
+    })
     
-    return(p)
-  })
   
+  # # IPCC High/Low visualization
+  # output$ipcc_similar <- renderPlotly({
+  #   data <- ipcc_data() %>%
+  #     arrange(desc(value))
+  #   
+  #   # Get top 5 and bottom 5 (or all if less than 20 total)
+  #   max_regions <- min(5, floor(nrow(data) / 2))
+  #   top5 <- head(data, max_regions)
+  #   bottom5 <- tail(data, max_regions)
+  #   
+  #   # Start with top10 and bottom10
+  #   display_data <- bind_rows(top5, bottom5)
+  #   
+  #   # Determine if selected region is already in High/Low
+  #   selected_in_display <- FALSE
+  #   if (input$ipcc != "") {
+  #     selected_in_display <- input$ipcc %in% c(top5$NAME, bottom5$NAME)
+  #   }
+  #   
+  #   # Add selected region if it exists and isn't already in High/Low
+  #   if (input$ipcc != "" && !selected_in_display) {
+  #     selected <- data %>% filter(NAME == input$ipcc)
+  #     display_data <- bind_rows(top5, selected, bottom5)
+  #   }
+  #   
+  #   # Add a group column for coloring
+  #   display_data <- display_data %>%
+  #     mutate(
+  #       group = case_when(
+  #         NAME %in% top5$NAME & NAME == input$ipcc ~ "Selected Top",
+  #         NAME %in% bottom5$NAME &
+  #           NAME == input$ipcc ~ "Selected Bottom",
+  #         NAME %in% top5$NAME ~ "Top Regions",
+  #         NAME %in% bottom5$NAME ~ "Bottom Regions",
+  #         TRUE ~ "Selected"
+  #       )
+  #     )
+  #   
+  #   # Create a horizontal bar chart
+  #   p <- plot_ly(
+  #     display_data,
+  #     y = ~ reorder(NAME_short, value),
+  #     x = ~ value,
+  #     type = "bar",
+  #     orientation = "h",
+  #     color = ~ group,
+  #     colors = c(
+  #       "Top Regions" = "#BC0032",
+  #       "Bottom Regions" = "#00bc8c",
+  #       "Selected" = "#f39c12",
+  #       "Selected Top" = "#e74c3c",
+  #       "Selected Bottom" = "#2ecc71"
+  #     )
+  #   ) %>%
+  #     layout(
+  #       title = list(
+  #         text = "IPCC Regions with Highest and Lowest HFI",
+  #         font = list(size = 14, color = "#FFFFFF"),
+  #         y = 0.9
+  #       ),
+  #       xaxis = list(
+  #         title = "Human Footprint Index",
+  #         showgrid = TRUE,
+  #         gridcolor = "#444",
+  #         color = "#FFFFFF",
+  #         tickfont = list(color = "#FFFFFF")
+  #       ),
+  #       yaxis = list(
+  #         title = "",
+  #         showgrid = FALSE,
+  #         color = "#FFFFFF",
+  #         tickfont = list(color = "#FFFFFF", size = 12),
+  #         showticklabels = TRUE,
+  #         dtick = 1 # Force a tick for each position
+  #       ),
+  #       bargap = 0.2,
+  #       # Remove gaps between bars
+  #       bargroupgap = 0,
+  #       # Remove gaps between bar groups
+  #       barmode = "stack",
+  #       # Ensures bars are directly adjacent
+  #       margin = list(
+  #         l = 1,
+  #         r = 1,
+  #         t = 60,
+  #         b = 1
+  #       ),
+  #       # Reduces margins, slight top margin for spacing
+  #       legend = list(
+  #         orientation = "h",
+  #         x = 1,
+  #         xanchor = "right",
+  #         y = 0,
+  #         yanchor = "bottom",
+  #         itemwidth = 40,
+  #         itemsizing = "constant",
+  #         bgcolor = "rgba(0, 0, 0, 0)",
+  #         traceorder = "normal"  # Add this line
+  #       ),
+  #       plot_bgcolor = "#222222",
+  #       paper_bgcolor = "#222222",
+  #       font = list(color = "#FFFFFF")
+  #     )
+  #   
+  #   return(p)
+  # })
+  # 
   ## Time Series --------------------
   
   ###  Country time series ---------------------------
@@ -1039,7 +1068,7 @@ server <- function(input, output, session) {
     req(input$country)
     
     # Create color vector for classes
-    class_colors <- c("Low" = "#1b9e77", "Medium" = "#7570b3", "High" = "#d95f02")
+    class_colors <- c("Natural (<10)" = "#1b9e77", "Used (>10 & <25)" = "#7570b3", "Settlements (>25)" = "#d95f02")
     
     # Create plotly stacked bar chart
     plot_ly(
@@ -1073,7 +1102,7 @@ server <- function(input, output, session) {
           tickfont = list(color = "#FFFFFF")
         ),
         yaxis = list(
-          title = "Human Footprint Index",
+          title = "Proportion",
           showgrid = TRUE,
           gridcolor = "#444",
           color = "#FFFFFF",
@@ -1102,72 +1131,71 @@ server <- function(input, output, session) {
   
   
   ### Country Frequency Heat Map
-  output$country_time_heatmap <- renderPlotly({
-    
-    plot_ly(
-      data = test_freqs,
-      x = ~value,
-      y = ~year,
-      z = ~count,
-      type = "heatmap",
-      colorscale = "Viridis"
-    ) %>%
-      layout(
-        title = list(
-          text = "Pixel Value Distribution Heatmap by Year",
-          font = list(size = 14, color = "#FFFFFF"),
-          y = 0.95,
-          x = 0.5,
-          xanchor = "center"
-        ),
-        xaxis = list(
-          title = "Pixel Value",
-          showgrid = TRUE,
-          gridcolor = "#444",
-          color = "#FFFFFF",
-          tickfont = list(color = "#FFFFFF")
-        ),
-        yaxis = list(
-          title = "Year",
-          tickmode = "array",
-          tickvals = years,
-          ticktext = years,
-          tickfont = list(size = 10, color = "#FFFFFF"),
-          showgrid = TRUE,
-          gridcolor = "#444",
-          color = "#FFFFFF"
-        ),
-        plot_bgcolor = "#222222",
-        paper_bgcolor = "#222222",
-        margin = list(t = 70, b = 50),
-        hoverlabel = list(bgcolor = "white")
-      ) %>%
-      colorbar(
-        title = "Count",
-        titlefont = list(color = "#FFFFFF"),
-        tickfont = list(color = "#FFFFFF")
-      )
-  })
-  
+  # output$country_time_heatmap <- renderPlotly({
+  #   
+  #   plot_ly(
+  #     data = test_freqs,
+  #     x = ~value,
+  #     y = ~year,
+  #     z = ~count,
+  #     type = "heatmap",
+  #     colorscale = "Viridis"
+  #   ) %>%
+  #     layout(
+  #       title = list(
+  #         text = "Pixel Value Distribution Heatmap by Year",
+  #         font = list(size = 14, color = "#FFFFFF"),
+  #         y = 0.95,
+  #         x = 0.5,
+  #         xanchor = "center"
+  #       ),
+  #       xaxis = list(
+  #         title = "Pixel Value",
+  #         showgrid = TRUE,
+  #         gridcolor = "#444",
+  #         color = "#FFFFFF",
+  #         tickfont = list(color = "#FFFFFF")
+  #       ),
+  #       yaxis = list(
+  #         title = "Year",
+  #         tickmode = "array",
+  #         tickvals = years,
+  #         ticktext = years,
+  #         tickfont = list(size = 10, color = "#FFFFFF"),
+  #         showgrid = TRUE,
+  #         gridcolor = "#444",
+  #         color = "#FFFFFF"
+  #       ),
+  #       plot_bgcolor = "#222222",
+  #       paper_bgcolor = "#222222",
+  #       margin = list(t = 70, b = 50),
+  #       hoverlabel = list(bgcolor = "white")
+  #     ) %>%
+  #     colorbar(
+  #       title = "Count",
+  #       titlefont = list(color = "#FFFFFF"),
+  #       tickfont = list(color = "#FFFFFF")
+  #     )
+  # })
+  # 
   
   ### Country ridgline time series chart
   
   output$country_time_ridgeline <- renderPlotly({
-    p <- ggplot(test_freqs, aes(
+    p <- ggplot(test_freqs %>% filter(year == input$year), aes(
       x = value,
-      y = count,
-      color = year,
-      group = year
+      y = count
+     #color = year
+      #group = year
     )) +
-      geom_line(size = 0.5, alpha = 0.75) +
-      scale_color_viridis_c(option = "plasma", direction = 1) +
+      geom_line(size = 0.5, alpha = 0.75, color = "yellow") +
+      #scale_color_viridis_c(option = "plasma", direction = 1) +
       scale_y_continuous(labels = scientific_format(digits = 2)) +
       scale_x_continuous(breaks = seq(0, max(test_freqs$value, na.rm = TRUE), by = 10)) +
       labs(
-        title = "Pixel Value Distribution by Year",
-        x = "Pixel Value",
-        y = "Count",
-        color = "Year"
+        title = "HFI Regional Distribution for Selected Year",
+        x = "HFI Value",
+        y = "Count"
       ) +
       theme_dark() +
       theme(
@@ -1180,15 +1208,15 @@ server <- function(input, output, session) {
         axis.title = element_text(color = "#FFFFFF", size = 12),
         plot.title = element_text(
           color = "#FFFFFF",
-          face = "bold",
-          size = 16,
+          #face = "bold",
+          size = 12,
           hjust = 0.5
         ),
         legend.background = element_rect(fill = "#222222"),
         legend.text = element_text(color = "#FFFFFF"),
         legend.title = element_text(color = "#FFFFFF", size = 12),
         legend.key = element_rect(fill = "#222222"),
-        legend.position = "bottom" # Added width to make the legend spread out horizontally
+        legend.position = "none" # Added width to make the legend spread out horizontally
       )
     
     ggplotly(p) %>%

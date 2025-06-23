@@ -118,7 +118,7 @@ landing_page <- function() {
                   "Access Earth Engine", 
                   icon = icon("map"), 
                   class = "btn btn-warning w-100",
-                  onclick = "window.open('https://earthengine.google.com/', '_blank')"
+                  onclick = "window.open('https://code.earthengine.google.com/f46e81f6ada4c8608b963e6d255efd87', '_blank')"
                 )
               )
             )
