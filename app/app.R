@@ -40,10 +40,10 @@ locations <- data.frame(
 # Test time series data
 test_props <- read_csv("app_data/proportion_timeseries.csv") %>% 
   mutate(class = case_when(class == "Low" ~ "Natural (<10)",
-                           class == "Medium" ~ "Used (>10 & <25)",
-                           class == "High" ~ "Settlements (>25)",
+                           class == "Medium" ~ "Used (>10 & <35)",
+                           class == "High" ~ "Settlements (>35)",
                            .default = class)) %>% 
-  mutate(class = factor(class, levels = c("Natural (<10)", "Used (>10 & <25)", "Settlements (>25)")))
+  mutate(class = factor(class, levels = c("Natural (<10)", "Used (>10 & <35)", "Settlements (>35)")))
 
 test_freqs <- read_csv("app_data/distribution_timeseries.csv")
 
@@ -55,16 +55,146 @@ my_theme <- bs_theme(
   bg = "#222222",
   fg = "#FFFFFF",
   primary = "#00bc8c",
-  secondary = "#BC0032"
+  secondary = "#BC0032",
+  info = "#3A86FF",           
+  warning = "#F6AD55",       
+  danger = "#7B0828",        
+  success = "#8A6FDF"   
 )
 
 # UI --------------------------------------------
 
+# Create a landing function
+landing_page <- function() {
+  page_fluid(
+    theme = my_theme,
+    div(
+      class = "container py-4",
+      style = "max-width: 1200px;",
+      
+      # Header with title and description
+      div(
+        class = "p-4 mb-4 rounded-3 text-center",
+        style = "background-color: #212426;",
+        h1("Human Footprint Index", style = "color: #00bc8c;"),
+        p(class = "lead", "Explore global human impact on the environment through interactive visualization tools and data resources"),
+        p("The Human Footprint Index (HFI) quantifies human influence on the Earth's land surface based on ... {placeholder}")
+      ),
+      
+      # Cards section
+      div(
+        class = "row row-cols-1 row-cols-md-2 g-4",
+        
+        # Card 1: Interactive Data Explorer
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "Interactive Data Explorer"),
+              p(class = "card-text", "Explore the global Human Footprint Index through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."),
+              div(
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_explorer", 
+                  "Launch Explorer", 
+                  icon = icon("globe"), 
+                  class = "btn btn-info w-100"
+                )
+              )
+            )
+          )
+        ),
+        
+        # Card 2: Google Earth Engine
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "Google Earth Engine"),
+              p(class = "card-text", "Access the HFI dataset through Google Earth Engine for advanced geospatial analysis and integration with other environmental datasets."),
+              div(
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_gee", 
+                  "Access Earth Engine", 
+                  icon = icon("map"), 
+                  class = "btn btn-warning w-100",
+                  onclick = "window.open('https://code.earthengine.google.com/f46e81f6ada4c8608b963e6d255efd87', '_blank')"
+                )
+              )
+            )
+          )
+        ),
+        
+        # Card 3: Google API
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "API Access"),
+              p(class = "card-text", "Integrate HFI data into your applications with our Google Cloud API. Fetch specific regions, time periods, or analysis-ready datasets."),
+              div(
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_api", 
+                  "API Documentation", 
+                  icon = icon("code"), 
+                  class = "btn btn-secondary w-100",
+                  onclick = "window.open('https://developers.google.com/earth-engine/datasets/catalog', '_blank')"
+                )
+              )
+            )
+          )
+        ),
+        
+        # Card 4: Raw Data Download
+        div(
+          class = "col",
+          div(
+            class = "card h-100",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body d-flex flex-column",
+              h3(class = "card-title", "Raw Data Download"),
+              p(class = "card-text", "Download the complete HFI dataset in various formats (GeoTIFF, CSV, shapefile) for use in your own GIS software or analysis."),
+              div(
+                class = "mt-auto pt-3",
+                actionButton(
+                  "go_to_download", 
+                  "Download Data", 
+                  icon = icon("download"), 
+                  class = "btn btn-success w-100",
+                  onclick = "window.open('https://mountainscholar.org/home', '_blank')"
+                )
+              )
+            )
+          )
+        )
+      ),
+      
+      # Footer
+      div(
+        class = "pt-5 mt-5 text-center",
+        p("Copyright Placeholder © 2025", style = "color: #999;"),
+        p("Citation Placeholder", style = "color: #999;")
+      )
+    )
+  )
+}
 
 ui <- page_sidebar(
   theme = my_theme,
-  #includeCSS("www/style.css"),
-  title = "Human Footprint Index Dashboard",
+  includeCSS("www/style.css"),
+  title = "Machine Learning Human Footprint Index (mlHFI) Dashboard",
   sidebar = sidebar(
     radioGroupButtons(
       "map_type",
@@ -410,9 +540,13 @@ server <- function(input, output, session) {
       })
       
       leafletProxy('map') %>%
+        clearShapes() %>% 
         setView(lng = zoom()[1],
                 lat = zoom()[2],
-                zoom = 6)
+                zoom = 6) %>% 
+        addPolygons(data =  countries %>%
+                      filter(name == input$country),
+                    color = "yellow")
     }
     
     
@@ -444,6 +578,7 @@ server <- function(input, output, session) {
   observeEvent(input$reset_view, {
     # Reset the map view to global view
     leafletProxy("map") %>%
+      clearShapes() %>% 
       setView(lng = 0,
               lat = 30,
               zoom = 2)
@@ -1068,7 +1203,7 @@ server <- function(input, output, session) {
     req(input$country)
     
     # Create color vector for classes
-    class_colors <- c("Natural (<10)" = "#1b9e77", "Used (>10 & <25)" = "#7570b3", "Settlements (>25)" = "#d95f02")
+    class_colors <- c("Natural (<10)" = "#1b9e77", "Used (>10 & <35)" = "#7570b3", "Settlements (>35)" = "#d95f02")
     
     # Create plotly stacked bar chart
     plot_ly(
@@ -1114,6 +1249,7 @@ server <- function(input, output, session) {
           xanchor = "center",
           y = -0.3,
           yanchor = "top",
+          itemwidth = 60,
           font = list(color = "#FFFFFF"),
           traceorder = "normal"  # Ensures the order follows the factor levels
         ),
@@ -1182,50 +1318,37 @@ server <- function(input, output, session) {
   ### Country ridgline time series chart
   
   output$country_time_ridgeline <- renderPlotly({
-    p <- ggplot(test_freqs %>% filter(year == input$year), aes(
-      x = value,
-      y = count
-     #color = year
-      #group = year
-    )) +
-      geom_line(size = 0.5, alpha = 0.75, color = "yellow") +
-      #scale_color_viridis_c(option = "plasma", direction = 1) +
-      scale_y_continuous(labels = scientific_format(digits = 2)) +
-      scale_x_continuous(breaks = seq(0, max(test_freqs$value, na.rm = TRUE), by = 10)) +
-      labs(
-        title = "HFI Regional Distribution for Selected Year",
-        x = "HFI Value",
-        y = "Count"
-      ) +
-      theme_dark() +
-      theme(
-        plot.background = element_rect(fill = "#222222"),
-        panel.background = element_rect(fill = "#222222"),
-        panel.grid.major = element_line(color = "#444444"),
-        panel.grid.minor = element_blank(),
-        text = element_text(color = "#FFFFFF"),
-        axis.text = element_text(color = "#FFFFFF"),
-        axis.title = element_text(color = "#FFFFFF", size = 12),
-        plot.title = element_text(
-          color = "#FFFFFF",
-          #face = "bold",
-          size = 12,
-          hjust = 0.5
-        ),
-        legend.background = element_rect(fill = "#222222"),
-        legend.text = element_text(color = "#FFFFFF"),
-        legend.title = element_text(color = "#FFFFFF", size = 12),
-        legend.key = element_rect(fill = "#222222"),
-        legend.position = "none" # Added width to make the legend spread out horizontally
-      )
     
-    ggplotly(p) %>%
+    plot_ly(
+      data = test_freqs %>% filter(year == input$year),
+      x = ~value,
+      y = ~count,
+      type = "bar",
+      marker = list(color = "yellow", opacity = 0.75)
+    ) %>%
       layout(
-        paper_bgcolor = "#222222",
+        title = list(
+          text = paste("HFI Regional Distribution for", input$year),
+          font = list(color = "#FFFFFF", size = 12),
+          x = 0.5
+        ),
+        xaxis = list(
+          title = list(text = "HFI Value", font = list(color = "#FFFFFF", size = 12)),
+          tickfont = list(color = "#FFFFFF"),
+          gridcolor = "#444444",
+          dtick = 10
+        ),
+        yaxis = list(
+          title = list(text = "Count", font = list(color = "#FFFFFF", size = 12)),
+          tickfont = list(color = "#FFFFFF"),
+          gridcolor = "#444444",
+          tickformat = ".2e"  # Scientific notation
+        ),
         plot_bgcolor = "#222222",
-        font = list(color = "#FFFFFF"),
-        margin = list(t = 70, b = 100),
-        hoverlabel = list(bgcolor = "white"))
+        paper_bgcolor = "#222222",
+        showlegend = FALSE
+      ) %>%
+      config(displayModeBar = FALSE)
     
   })
   
