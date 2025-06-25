@@ -34,3 +34,37 @@
   scrollbar-width: auto;
   scrollbar-color: white black;
 }
+
+
+
+/* Slider bar (active track) */
+.irs--shiny .irs-bar {
+  border-top: #00bc8c;
+  border-bottom: #00bc8c;
+  background: #00bc8c !important;
+}
+
+/* Slider handle (dot) */
+.irs--shiny .irs-handle > i:first-child {
+  background: #00bc8c !important;
+}
+
+/* Slider handle border */
+.irs--shiny .irs-handle {
+  border-color: #00bc8c !important;
+  background-color: #00bc8c !important;
+}
+
+/* Value labels (from, to, single) */
+.irs--shiny .irs-from, 
+.irs--shiny .irs-to, 
+.irs--shiny .irs-single {
+  background: #00bc8c !important;
+}
+
+/* Value label arrows */
+.irs--shiny .irs-from:before, 
+.irs--shiny .irs-to:before, 
+.irs--shiny .irs-single:before {
+  border-top-color: #00bc8c !important;
+}
