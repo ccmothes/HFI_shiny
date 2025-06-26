@@ -20,6 +20,24 @@ annual <- map(rasters[-1], terra::rast)
 ```
 
 
+Get file names to use later on
+```{r}
+annual_names <- map(rasters[-1], ~str_extract(.x, "(?<=_)\\d{4}(?=_)"))
+```
+
+
+Match extents
+```{r}
+# Define a common extent (global example)
+common_extent <- ext(-180, 180, -90, 90)
+
+# Extend all rasters to union extent
+aligned_rasters <- map(annual, function(r) {
+  extend(r, common_extent)
+})
+```
+
+
 ## Tile Creation
 
 Had to run this in terminal after installing gdal (Mac)
@@ -164,7 +182,7 @@ leaflet() %>%
 ```{r}
 
 # Create a blank raster matching the resolution/extent of r
-poly_raster <- rast(annual[[1]])
+poly_raster <- rast(aligned_rasters[[1]])
 
 
 # Rasterize the polygon vector based on IDs
@@ -186,25 +204,41 @@ Calculate over all years
 
 ```{r}
 
-zonal_ipcc_all <- map(annual, ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
+zonal_ipcc_all <- map(aligned_rasters, ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
 
-zonal_country_all <- map(annual, ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
+zonal_country_all <- map(aligned_rasters, ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
 
 ```
+
+Add names for combining years
+```{r}
+names(zonal_ipcc_all) <- paste0("mlHFI_", annual_names)
+
+names(zonal_country_all) <- paste0("mlHFI_", annual_names)
+```
+
+
+Combine and clean
+```{r}
+ipcc_all <- bind_rows(zonal_ipcc_all, .id = "year") %>%
+  pivot_wider(names_from = year, 
+              values_from = `mlHFI prediction`)
+
+country_all <-  bind_rows(zonal_country_all, .id = "year") %>%
+  pivot_wider(names_from = year, 
+              values_from = `mlHFI prediction`)
+```
+
 
 Add to polygons and save
 
 ```{r}
 # countries
-country_all <- reduce(zonal_country_all, left_join, by = "name")
-
 countries <- merge(countries, country_all, by = "name")
 
 writeVector(countries, "app/app_data/countries.shp", overwrite = TRUE)
 
 # ipcc regions
-ipcc_all <- reduce(zonal_ipcc_all, left_join, by = "NAME")
-
 ipcc <- merge(ipcc, ipcc_all, by = "NAME")
 
 writeVector(ipcc, "app/app_data/IPCC_regions/referenceRegions.shp", overwrite = TRUE)
