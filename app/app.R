@@ -29,7 +29,8 @@ countries <- read_sf("app_data/countries.shp") %>% arrange(name)
 
 # Generate sample data
 set.seed(123)
-years <- 1999:2023
+years <- c(1999, 2000, 2001, 2022, 2023, 2024)
+#years <- 1999:2023
 locations <- data.frame(
   lat = rep(runif(10, 35, 45), length(years)),
   lng = rep(runif(10, -100, -80), length(years)),
@@ -203,16 +204,21 @@ ui <- page_navbar(
         choices = c("Annual Map", "Change Map"),
         selected = "Annual Map"
       ),
-      #title = "Controls",
-      sliderInput(
-        "year",
-        "Select Year:",
-        min = min(years),
-        max = max(years),
-        value = max(years),
-        step = 24,
-        sep = ""
+      sliderTextInput(
+        inputId = "year",
+        label = "Select Year:",
+        choices = c(1999, 2000, 2001, 2022, 2023, 2024),
+        selected = 1999,
+        grid = TRUE
       ),
+      #title = "Controls",
+    #  sliderInput(
+     #   "year",
+     #   "Select Year:",
+     #   choices = c(1999, 2000, 2001, 2022, 2023, 2024),
+     #   selected = 1999,
+     #   sep = ""
+     # ),
       em("For change maps, must select a year greater than 1999"),
       ## Regional summaries ------------------
       accordion(
@@ -349,7 +355,7 @@ server <- function(input, output, session) {
   
   # reactive color palette for country summaries
   country_pal <- reactive({
-    var <- paste0(input$year, "_int16")
+    var <- paste0("mlHFI_", input$year)
     
     colorNumeric(colorRampPalette(
       c(
@@ -368,7 +374,7 @@ server <- function(input, output, session) {
   
   # reactive color palette for IPCC summaries
   ipcc_pal <- reactive({
-    var <- paste0(input$year, "_int16")
+    var <- paste0("mlHFI_", input$year)
     
     colorNumeric(colorRampPalette(
       c(
@@ -453,17 +459,15 @@ server <- function(input, output, session) {
         #Sys.sleep(5)  # Simulate loading time
         
         # Simulate steps in data loading
-        for (i in 1:10) {
-          incProgress(1 / 10, message = "Loading shapefile...")
+        for (i in 1:5) {
+          incProgress(1 / 5, message = "Loading shapefile...")
           Sys.sleep(0.5)  # Simulate work
         }
         
         map_proxy %>%
           addPolygons(
             data = countries,
-            fillColor = ~ country_pal()(get(paste0(
-              input$year, "_int16"
-            ))),
+            fillColor = ~ country_pal()(get(paste0("mlHFI_", input$year))),
             fillOpacity = 0.95,
             weight = 0.5,
             color = "#444444",
@@ -474,15 +478,15 @@ server <- function(input, output, session) {
               "</strong>",
               "<br>",
               paste(input$year, "Mean HFI:"),
-              round(get(paste0(
-                input$year, "_int16"
+              round(get(paste0("mlHFI_",
+                input$year
               )), 2)
             )
           ) %>%
           addLegend(
             position = "bottomright",
             pal = country_pal(),
-            values = countries[[paste0(input$year, "_int16")]],
+            values = countries[[paste0("mlHFI_", input$year)]],
             title = "Average HFI by Country",
             group = "Countries"
           )
@@ -498,8 +502,8 @@ server <- function(input, output, session) {
       map_proxy %>%
         addPolygons(
           data = ipcc,
-          fillColor = ~ ipcc_pal()(get(paste0(
-            input$year, "_int16"
+          fillColor = ~ ipcc_pal()(get(paste0("mlHFI_",
+            input$year
           ))),
           fillOpacity = 0.85,
           weight = 0.5,
@@ -511,15 +515,15 @@ server <- function(input, output, session) {
             "</strong>",
             "<br>",
             paste(input$year, "Mean HFI:"),
-            round(get(paste0(
-              input$year, "_int16"
+            round(get(paste0("mlHFI_",
+              input$year
             )), 2)
           )
         ) %>%
         addLegend(
           position = "bottomright",
           pal = ipcc_pal(),
-          values = ipcc[[paste0(input$year, "_int16")]],
+          values = ipcc[[paste0("mlHFI_", input$year)]],
           title = "Average HFI by IPCC Region",
           group = "IPCC"
         )
@@ -700,9 +704,11 @@ server <- function(input, output, session) {
     countries %>%
       st_drop_geometry() %>%
       group_by(name, type) %>%
-      summarise(value = mean(get(paste0(
-        input$year, "_int16"
-      ))))
+      summarise(value = mean(get(paste0("mlHFI_", input$year))))
+     # group_by(name, type) %>%
+     # summarise(value = mean(get(paste0(
+      #  input$year, "_int16"
+     # ))))
   })
   
   # Calculate IPCC data (used in multiple visualizations)
@@ -710,8 +716,8 @@ server <- function(input, output, session) {
     ipcc %>%
       st_drop_geometry() %>%
       group_by(NAME, NAME_short) %>%
-      summarise(value = mean(get(paste0(
-        input$year, "_int16"
+      summarise(value = mean(get(paste0("mlHFI_",
+        input$year
       ))))
   })
   
