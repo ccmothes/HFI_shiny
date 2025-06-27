@@ -14,27 +14,28 @@ rasters <- list.files("data/", pattern = ".tif", full.names = TRUE)
 
 # annual and change rasters
 
-change <- terra::rast(rasters[1])
+change <- terra::rast(rasters[str_detect(rasters, "diff_")])
 
-annual <- map(rasters[-1], terra::rast)
+annual <- map(rasters[str_detect(rasters, "exp318_")], terra::rast)
 ```
 
 Get file names to use later on
 
 ```{r}
-annual_names <- map(rasters[-1], ~str_extract(.x, "(?<=_)\\d{4}(?=_)"))
+annual_names <- map(rasters[str_detect(rasters, "exp318_")], ~str_extract(.x, "(?<=_)\\d{4}(?=_)"))
 ```
 
 Match extents
 
 ```{r}
-# Define a common extent (global example)
+# Define common extent
 common_extent <- ext(-180, 180, -90, 90)
 
-# Extend all rasters to union extent
+# align all rasters
 aligned_rasters <- map(annual, function(r) {
   extend(r, common_extent)
 })
+
 ```
 
 ## Tile Creation
@@ -431,33 +432,83 @@ write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 
 ## REAL DATA
 
-### Proportion time series
+### Proportion time series per country
 
 ```{r}
+library(progressr)
 
 years <- c(1999, 2000, 2001, 2022, 2023, 2024)
+rcl <- matrix(c(-Inf, 10, 1, 10, 35, 2, 35, Inf, 3), ncol=3, byrow=TRUE)
 
-# Process either list or collection
-results <- data.frame()
-for(i in 1:length(years)) {
-  # For a list
-  r <- aligned_rasters[[i]]
-  # Or for a collection
-  # r <- raster_collection[[i]]
+
+# Enable progress reporting
+with_progress({
+  p <- progressor(steps = length(years))
   
-  # Continue with classification as in the function above
-  rcl <- matrix(c(-Inf, 10, 1, 10, 35, 2, 35, Inf, 3), ncol=3, byrow=TRUE)
-  r_classified <- classify(r, rcl=rcl)
-  freq_table <- freq(r_classified)
-  freq_table$proportion <- freq_table$count / sum(freq_table$count)
-  freq_table$year <- years[i]
-  freq_table$class <- c("Low", "Medium", "High")[freq_table$value]
-  
-  results <- rbind(results, freq_table)
-}
+  results <- map2_dfr(aligned_rasters, years, function(raster, year) {
+    p(sprintf("Processing year %s", year))
+    
+    # For each country (sequential within each year)
+    map_dfr(seq_len(nrow(countries)), function(country_idx) {
+      # Mask raster to country
+      country_geom <- countries[country_idx]
+      masked_raster <- mask(raster, country_geom)
+      
+      # Classify and calculate proportions
+      r_classified <- classify(masked_raster, rcl = rcl)
+      freq_table <- freq(r_classified)
+      
+      # Skip if no data
+      if(nrow(freq_table) == 0) return(NULL)
+      
+      freq_table %>%
+        mutate(
+          proportion = count / sum(count),
+          year = year,
+          class = c("Low", "Medium", "High")[value],
+          country = countries$name[country_idx]
+        )
+    })
+  })
+})
 
-# Create stacked bar chart
+```
 
-# Convert class to factor with specific order
-results$class <- factor(results$class, levels = c("Low", "Medium", "High"))
+```{r}
+names(aligned_rasters) <- annual_names
+years <- c(1999, 2000, 2001, 2022, 2023, 2024)
+
+# set up classification
+rcl <- matrix(c(-Inf, 10, 1, 10, 35, 2, 35, Inf, 3), ncol=3, byrow=TRUE)
+
+# # Process either list or collection
+# results <- data.frame()
+# for(i in 1:length(years)) {
+#   # For a list
+#   r <- aligned_rasters[[i]]
+#   # reclassify
+#   r_classified <- classify(r, rcl=rcl)
+#   freq_table <- freq(r_classified)
+#   freq_table$proportion <- freq_table$count / sum(freq_table$count)
+#   freq_table$year <- years[i]
+#   freq_table$class <- c("Low", "Medium", "High")[freq_table$value]
+#   
+#   results <- rbind(results, freq_table)
+# }
+```
+
+Clean for app and save
+
+```{r}
+# convert classes to chart labels
+annual_props <- results %>% 
+  select(-c(layer, value)) %>% 
+  mutate(class = case_when(class == "Low" ~ "Natural (<10)",
+                           class == "Medium" ~ "Used (>10 & <35)",
+                           class == "High" ~ "Settlements (>35)",
+                           .default = class)) %>% 
+  mutate(class = factor(class, levels = c("Natural (<10)", "Used (>10 & <35)", "Settlements (>35)")))
+
+# save to app folder
+write_csv(annual_props,)
 ```
