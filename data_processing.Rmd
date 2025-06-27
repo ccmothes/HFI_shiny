@@ -6,7 +6,7 @@ source("setup.R")
 
 ## Read in rasters
 
-Local data/ folder 
+Local data/ folder
 
 ```{r}
 #hfi_1999 <- terra::rast("data/1999_int16.tif")
@@ -19,14 +19,14 @@ change <- terra::rast(rasters[1])
 annual <- map(rasters[-1], terra::rast)
 ```
 
-
 Get file names to use later on
+
 ```{r}
 annual_names <- map(rasters[-1], ~str_extract(.x, "(?<=_)\\d{4}(?=_)"))
 ```
 
-
 Match extents
+
 ```{r}
 # Define a common extent (global example)
 common_extent <- ext(-180, 180, -90, 90)
@@ -36,7 +36,6 @@ aligned_rasters <- map(annual, function(r) {
   extend(r, common_extent)
 })
 ```
-
 
 ## Tile Creation
 
@@ -211,14 +210,15 @@ zonal_country_all <- map(aligned_rasters, ~ terra::zonal(.x, country_poly, fun =
 ```
 
 Add names for combining years
+
 ```{r}
 names(zonal_ipcc_all) <- paste0("mlHFI_", annual_names)
 
 names(zonal_country_all) <- paste0("mlHFI_", annual_names)
 ```
 
-
 Combine and clean
+
 ```{r}
 ipcc_all <- bind_rows(zonal_ipcc_all, .id = "year") %>%
   pivot_wider(names_from = year, 
@@ -228,7 +228,6 @@ country_all <-  bind_rows(zonal_country_all, .id = "year") %>%
   pivot_wider(names_from = year, 
               values_from = `mlHFI prediction`)
 ```
-
 
 Add to polygons and save
 
@@ -244,11 +243,10 @@ ipcc <- merge(ipcc, ipcc_all, by = "NAME")
 writeVector(ipcc, "app/app_data/IPCC_regions/referenceRegions.shp", overwrite = TRUE)
 ```
 
-
-
 # Time series
 
 ## MS DATA
+
 Test time series workflow and charts on Mississippi region
 
 ```{r}
@@ -432,4 +430,3 @@ write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 ```
 
 ## REAL DATA
-
