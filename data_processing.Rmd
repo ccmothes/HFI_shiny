@@ -430,3 +430,34 @@ write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 ```
 
 ## REAL DATA
+
+### Proportion time series
+
+```{r}
+
+years <- c(1999, 2000, 2001, 2022, 2023, 2024)
+
+# Process either list or collection
+results <- data.frame()
+for(i in 1:length(years)) {
+  # For a list
+  r <- aligned_rasters[[i]]
+  # Or for a collection
+  # r <- raster_collection[[i]]
+  
+  # Continue with classification as in the function above
+  rcl <- matrix(c(-Inf, 10, 1, 10, 35, 2, 35, Inf, 3), ncol=3, byrow=TRUE)
+  r_classified <- classify(r, rcl=rcl)
+  freq_table <- freq(r_classified)
+  freq_table$proportion <- freq_table$count / sum(freq_table$count)
+  freq_table$year <- years[i]
+  freq_table$class <- c("Low", "Medium", "High")[freq_table$value]
+  
+  results <- rbind(results, freq_table)
+}
+
+# Create stacked bar chart
+
+# Convert class to factor with specific order
+results$class <- factor(results$class, levels = c("Low", "Medium", "High"))
+```
