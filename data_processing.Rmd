@@ -38,6 +38,14 @@ aligned_rasters <- map(annual, function(r) {
 
 ```
 
+Save time consuming step
+
+```{r}
+names(aligned_rasters) <- paste0("mlHFI_", annual_names)
+
+writeRaster(rast(aligned_rasters), "data/cleaned_rasters.tif", overwrite = TRUE)
+```
+
 ## Tile Creation
 
 Had to run this in terminal after installing gdal (Mac)
@@ -434,44 +442,177 @@ write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 
 ### Proportion time series per country
 
+Read in aligned rasters
+
 ```{r}
-library(progressr)
+rasters <- terra::rast("data/cleaned_rasters.tif")
+```
 
-years <- c(1999, 2000, 2001, 2022, 2023, 2024)
-rcl <- matrix(c(-Inf, 10, 1, 10, 35, 2, 35, Inf, 3), ncol=3, byrow=TRUE)
+Create test chunks
 
+```{r}
+rasters_test <- rasters[[2:3]]
 
-# Enable progress reporting
-with_progress({
-  p <- progressor(steps = length(years))
+countries_test <- countries[1:10]
+```
+
+Test code
+
+```{r}
+
+cropped <- terra::crop(rasters_test, countries_test[1])
+
+extracted <- terra::extract(cropped, countries_test[1])
+
+# Get column names of annual raster values
+value_cols <- names(extracted)[-1]
+
+#Calculate proportions
+final_df <- map(value_cols, function(x) {
+  props <- aggregate(
+    extracted[x],
+    by = list(ID = extracted$ID),
+    FUN = function(x) {
+      x <- x[!is.na(x)]
+      if (length(x) == 0)
+        return(c(0, 0, 0))
+      total <- length(x)
+      c(
+        low = sum(x < 10) / total,
+        medium = sum(x >= 10 & x < 35) / total,
+        high = sum(x >= 35) / total
+      )
+    }
+  )
   
-  results <- map2_dfr(aligned_rasters, years, function(raster, year) {
-    p(sprintf("Processing year %s", year))
-    
-    # For each country (sequential within each year)
-    map_dfr(seq_len(nrow(countries)), function(country_idx) {
-      # Mask raster to country
-      country_geom <- countries[country_idx]
-      masked_raster <- mask(raster, country_geom)
-      
-      # Classify and calculate proportions
-      r_classified <- classify(masked_raster, rcl = rcl)
-      freq_table <- freq(r_classified)
-      
-      # Skip if no data
-      if(nrow(freq_table) == 0) return(NULL)
-      
-      freq_table %>%
-        mutate(
-          proportion = count / sum(count),
-          year = year,
-          class = c("Low", "Medium", "High")[value],
-          country = countries$name[country_idx]
-        )
-    })
-  })
+  # Convert to data frame with proper column names
+  result_df <- as.data.frame(props[[2]]) %>% pivot_longer(
+    cols = c(low, medium, high),
+    names_to = "class",
+    values_to = x
+  ) %>%
+    mutate(name = countries[1]$name)
+  
+  return(result_df)
 })
 
+final_df <- reduce(final_df, full_join, by = c("name", "class")) %>% 
+  select(name, class, everything())
+
+```
+
+Testing with subset
+
+```{r}
+#use pbapply for progress tracking
+library(pbapply)
+
+process_country <- function(i, rasters, countries) {
+  # Crop and extract for single country
+  cropped <- terra::crop(rasters, countries[i])
+  extracted <- terra::extract(cropped, countries[i])
+  
+  # Get column names of annual raster values
+  value_cols <- names(extracted)[-1]
+  
+  # Calculate proportions for this country
+  country_results <- map(value_cols, function(x) {
+    props <- aggregate(
+      extracted[x],
+      by = list(ID = extracted$ID),
+      FUN = function(x) {
+        x <- x[!is.na(x)]
+        if (length(x) == 0) return(c(0, 0, 0))
+        total <- length(x)
+        c(
+          low = sum(x < 10) / total,
+          medium = sum(x >= 10 & x < 35) / total,
+          high = sum(x >= 35) / total
+        )
+      }
+    )
+    
+    # Convert to data frame
+    result_df <- as.data.frame(props[[2]]) %>% 
+      pivot_longer(
+        cols = c(low, medium, high),
+        names_to = "class",
+        values_to = x
+      ) %>%
+      mutate(name = countries[i]$name)
+    
+    return(result_df)
+  })
+  
+  # Combine results for this country
+  country_final <- reduce(country_results, full_join, by = c("name", "class"))
+  return(country_final)
+}
+
+# Apply to all countries
+n_countries <- nrow(countries_test)
+all_results <- map_dfr(1:n_countries, ~process_country(.x, rasters_test, countries_test))
+
+all_results <- pblapply(1:n_countries, function(i) {
+  process_country(i, rasters_test, countries_test)
+})
+```
+
+Apply to all countries
+
+```{r}
+#use pbapply for progress tracking
+library(pbapply)
+
+process_country <- function(i, rasters, countries) {
+  # Crop and extract for single country
+  cropped <- terra::crop(rasters, countries[i])
+  extracted <- terra::extract(cropped, countries[i])
+  
+  # Get column names of annual raster values
+  value_cols <- names(extracted)[-1]
+  
+  # Calculate proportions for this country
+  country_results <- map(value_cols, function(x) {
+    props <- aggregate(
+      extracted[x],
+      by = list(ID = extracted$ID),
+      FUN = function(x) {
+        x <- x[!is.na(x)]
+        if (length(x) == 0) return(c(0, 0, 0))
+        total <- length(x)
+        c(
+          low = sum(x < 10) / total,
+          medium = sum(x >= 10 & x < 35) / total,
+          high = sum(x >= 35) / total
+        )
+      }
+    )
+    
+    # Convert to data frame
+    result_df <- as.data.frame(props[[2]]) %>% 
+      pivot_longer(
+        cols = c(low, medium, high),
+        names_to = "class",
+        values_to = x
+      ) %>%
+      mutate(name = countries[i]$name)
+    
+    return(result_df)
+  })
+  
+  # Combine results for this country
+  country_final <- reduce(country_results, full_join, by = c("name", "class"))
+  return(country_final)
+}
+
+# Apply to all countries
+n_countries <- nrow(countries)
+# all_results <- map_dfr(1:n_countries, ~process_country(.x, rasters_test, countries_test))
+
+all_results <- pblapply(1:n_countries, function(i) {
+  process_country(i, rasters, countries)
+})
 ```
 
 ```{r}
@@ -481,20 +622,20 @@ years <- c(1999, 2000, 2001, 2022, 2023, 2024)
 # set up classification
 rcl <- matrix(c(-Inf, 10, 1, 10, 35, 2, 35, Inf, 3), ncol=3, byrow=TRUE)
 
-# # Process either list or collection
-# results <- data.frame()
-# for(i in 1:length(years)) {
-#   # For a list
-#   r <- aligned_rasters[[i]]
-#   # reclassify
-#   r_classified <- classify(r, rcl=rcl)
-#   freq_table <- freq(r_classified)
-#   freq_table$proportion <- freq_table$count / sum(freq_table$count)
-#   freq_table$year <- years[i]
-#   freq_table$class <- c("Low", "Medium", "High")[freq_table$value]
-#   
-#   results <- rbind(results, freq_table)
-# }
+# Process either list or collection
+results <- data.frame()
+for(i in 1:length(years)) {
+  # For a list
+  r <- aligned_rasters[[i]]
+  # reclassify
+  r_classified <- classify(r, rcl=rcl)
+  freq_table <- freq(r_classified)
+  freq_table$proportion <- freq_table$count / sum(freq_table$count)
+  freq_table$year <- years[i]
+  freq_table$class <- c("Low", "Medium", "High")[freq_table$value]
+
+  results <- rbind(results, freq_table)
+}
 ```
 
 Clean for app and save
@@ -510,5 +651,5 @@ annual_props <- results %>%
   mutate(class = factor(class, levels = c("Natural (<10)", "Used (>10 & <35)", "Settlements (>35)")))
 
 # save to app folder
-write_csv(annual_props,)
+
 ```
