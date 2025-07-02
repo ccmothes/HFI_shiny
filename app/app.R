@@ -38,15 +38,17 @@ locations <- data.frame(
   value = runif(10 * length(years), 10, 100)
 )
 
+global_means <- read_csv("app_data/global_means.csv")
+
 # Test time series data
-test_props <- read_csv("app_data/proportion_timeseries.csv") %>% 
-  mutate(class = case_when(class == "Low" ~ "Natural (<10)",
-                           class == "Medium" ~ "Used (>10 & <35)",
-                           class == "High" ~ "Settlements (>35)",
-                           .default = class)) %>% 
+country_props <- read_csv("app_data/country_mlhfi_props_long.csv") %>% 
+  mutate(class = case_when(category == "low" ~ "Natural (<10)",
+                           category == "medium" ~ "Used (>10 & <35)",
+                           category == "high" ~ "Settlements (>35)",
+                           .default = category)) %>% 
   mutate(class = factor(class, levels = c("Natural (<10)", "Used (>10 & <35)", "Settlements (>35)")))
 
-test_freqs <- read_csv("app_data/distribution_timeseries.csv")
+counry_freqs <- read_csv("app_data/country_mlhfi_distribution.csv")
 
 
 # Create a dark theme
@@ -348,10 +350,7 @@ server <- function(input, output, session) {
   })  
   
   # Reactive filtered data ---------------------------------
-  filtered_data <- reactive({
-    locations %>%
-      filter(year == input$year)
-  })
+
   
   # reactive color palette for country summaries
   country_pal <- reactive({
@@ -1132,24 +1131,20 @@ server <- function(input, output, session) {
   ###  Country time series ---------------------------
   output$country_time_series <- renderPlotly({
     req(input$country)
+  
     
-    # Create sample time series data
-    years_data <- years
-    values <- runif(length(years_data), 30, 70) # Simple random trend
-    
-    # Add some trend for visual appeal
-    for (i in 2:length(values)) {
-      values[i] <- values[i - 1] + rnorm(1, 0, 3)
-      if (values[i] < 10)
-        values[i] <- 10
-      if (values[i] > 90)
-        values[i] <- 90
-    }
-    
-    ts_data <- data.frame(year = years_data, value = values)
+    ts_data <- countries %>% 
+      st_drop_geometry() %>% 
+      select(name, mlHFI_1999:mlHFI_2024) %>% 
+      pivot_longer(cols = -name,
+                   names_to = "year",
+                   values_to = "value") %>% 
+      separate(year, sep = "_", into = c("var", "year")) %>% 
+      select(-var) %>% 
+      filter(name == input$country)
     
     # Global average for comparison
-    global_data <- data.frame(year = years_data, value = runif(length(years_data), 40, 60))
+    #global_data <- data.frame(year = years_data, value = runif(length(years_data), 40, 60))
     
     # Create time series plot
     p <- plot_ly() %>%
@@ -1163,9 +1158,9 @@ server <- function(input, output, session) {
         line = list(color = "#00bc8c", width = 3)
       ) %>%
       add_trace(
-        data = global_data,
+        data = global_means,
         x = ~ year,
-        y = ~ value,
+        y = ~ mean,
         type = "scatter",
         mode = "lines",
         name = "Global Average",
@@ -1190,6 +1185,8 @@ server <- function(input, output, session) {
         ),
         yaxis = list(
           title = "Human Footprint Index",
+          #tick0 = 0,
+          #dtick = 2, # extend y axis
           showgrid = TRUE,
           gridcolor = "#444",
           color = "#FFFFFF",
@@ -1199,10 +1196,11 @@ server <- function(input, output, session) {
           orientation = "h",
           x = 0.5,
           xanchor = "center",
-          y = 0.85,
+          y = 0.92,
           yanchor = "bottom",
           font = list(color = "#FFFFFF")
         ),
+        margin = list(t = 50),
         plot_bgcolor = "#222222",
         paper_bgcolor = "#222222",
         font = list(color = "#FFFFFF")
@@ -1221,14 +1219,15 @@ server <- function(input, output, session) {
     
     # Create plotly stacked bar chart
     plot_ly(
-      data = test_props,
+      data = country_props %>% filter(name == input$country),
       x = ~year,
       y = ~proportion,
       color = ~class,
       colors = class_colors,
       type = "bar",
       hoverinfo = "text",
-      text = ~paste("Class:", class, "<br>Proportion:", round(proportion, 3), "<br>Year:", year)
+      text = ~paste("Class:", class, "<br>Proportion:", round(proportion, 3), "<br>Year:", year),
+      textposition = "none"
     ) %>%
       layout(
         title = list(
@@ -1240,6 +1239,7 @@ server <- function(input, output, session) {
         ),
         xaxis = list(
           title = "Year",
+          type = "category",
           #tickangle = -45,
           tickmode = "array",
           tickvals = years,  # Force all years to be shown
@@ -1334,7 +1334,7 @@ server <- function(input, output, session) {
   output$country_time_ridgeline <- renderPlotly({
     
     plot_ly(
-      data = test_freqs %>% filter(year == input$year),
+      data = country_freqs %>% filter(year == input$year & name == input$country),
       x = ~value,
       y = ~count,
       type = "bar",
@@ -1456,15 +1456,15 @@ server <- function(input, output, session) {
   # Global time series (kept from original)
   output$timeSeries <- renderPlotly({
     # Data preparation
-    avg_data <- locations %>%
-      group_by(year) %>%
-      summarize(avg_value = mean(value))
+    # avg_data <- locations %>%
+    #   group_by(year) %>%
+    #   summarize(avg_value = mean(value))
     
     # Create Plotly figure
     plot_ly(
-      avg_data,
+      global_means,
       x = ~ year,
-      y = ~ avg_value,
+      y = ~ mean,
       type = "scatter",
       mode = "lines+markers",
       line = list(
@@ -1479,9 +1479,9 @@ server <- function(input, output, session) {
     ) %>%
       # Highlight selected year
       add_trace(
-        data = avg_data %>% filter(year == input$year),
+        data = global_means %>% filter(year == input$year),
         x = ~ year,
-        y = ~ avg_value,
+        y = ~ mean,
         type = "scatter",
         mode = "markers",
         marker = list(color = "#BC0032", size = 8),
