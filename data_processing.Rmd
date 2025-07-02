@@ -440,8 +440,6 @@ write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 
 ## REAL DATA
 
-### Proportion time series per country
-
 Read in aligned rasters
 
 ```{r}
@@ -456,5 +454,146 @@ rasters_test <- rasters[[2:3]]
 countries_test <- countries[1:10]
 ```
 
+
+## Country Level
+
+### Frequency Distribution
+
+
+This is the most time consuming step
+```{r}
+freqs_all <- terra::freq(rasters, zones = countries)
+```
+
+
+Join and clean final frequency data
+```{r}
+# add ID column to countries to join name
+countries_join <- countries %>%
+  as.data.frame() %>%
+  select(name) %>%
+  rowid_to_column(var = "zone")
+
+# clean
+freqs_clean <- freqs_all %>%
+  mutate(year = case_when(layer == 1 ~ 1999,
+                          layer == 2 ~ 2000,
+                          layer == 3 ~ 2001,
+                          layer == 4 ~ 2022,
+                          layer == 5 ~ 2023,
+                          layer == 6 ~ 2024)) %>%
+  left_join(countries_join, by = "zone") %>%
+  select(-c(layer, zone))
+```
+
+Save
+```{r}
+write_csv(freqs_clean, "data/country_mlhfi_distribution.csv")
+```
+
+
+### Proportions
+```{r}
+# Proportion calculation
+props_long <- freqs_clean %>%
+  mutate(
+    category = case_when(
+      value < 10 ~ "low",
+      value >= 10 & value <= 35 ~ "medium",
+      value > 35 ~ "high"
+    )
+  ) %>%
+  # Group by country, year, and category
+  group_by(name, year, category) %>%
+  summarise(category_count = sum(count), .groups = "drop") %>%
+  # Calculate total count per country-year
+  group_by(name, year) %>%
+  mutate(
+    total_count = sum(category_count),
+    proportion = category_count / total_count
+  ) %>%
+  ungroup()
+
+props_wide <- props_long %>%
+  select(-c(category_count, total_count)) %>%
+  pivot_wider(names_from = year, values_from = proportion) %>%
+  mutate(across(everything(), ~ifelse(is.na(.), 0, .)))
+```
+
+Save
+```{r}
+write_csv(props_long, "data/country_mlhfi_props_long.csv")
+write_csv(props_wide, "data/country_mlhfi_props_wide.csv")
+```
+
+
+## IPCC Level
+
+### Frequency Distribution
+
+```{r}
+freqs_ipcc <- terra::freq(rasters, zones = ipcc)
+```
+
+Join and clean final frequency data
+```{r}
+# add ID column to countries to join name
+ipcc_join <- ipcc %>%
+  as.data.frame() %>%
+  select(NAME) %>%
+  rowid_to_column(var = "zone")
+
+# clean
+freqs_ipcc_clean <- freqs_ipcc %>%
+  mutate(year = case_when(layer == 1 ~ 1999,
+                          layer == 2 ~ 2000,
+                          layer == 3 ~ 2001,
+                          layer == 4 ~ 2022,
+                          layer == 5 ~ 2023,
+                          layer == 6 ~ 2024)) %>%
+  left_join(ipcc_join, by = "zone") %>%
+  select(-c(layer, zone))
+```
+
+Save
+```{r}
+write_csv(freqs_ipcc_clean, "data/ipcc_mlhfi_distribution.csv")
+```
+
+
+
+### Proportions
+```{r}
+# Proportion calculation
+ipcc_props_long <- freqs_ipcc_clean %>%
+  mutate(
+    category = case_when(
+      value < 10 ~ "low",
+      value >= 10 & value <= 35 ~ "medium",
+      value > 35 ~ "high"
+    )
+  ) %>%
+  # Group by country, year, and category
+  group_by(NAME, year, category) %>%
+  summarise(category_count = sum(count), .groups = "drop") %>%
+  # Calculate total count per country-year
+  group_by(NAME, year) %>%
+  mutate(
+    total_count = sum(category_count),
+    proportion = category_count / total_count
+  ) %>%
+  ungroup()
+
+ipcc_props_wide <- props_long %>%
+  select(-c(category_count, total_count)) %>%
+  pivot_wider(names_from = year, values_from = proportion) %>%
+  mutate(across(everything(), ~ifelse(is.na(.), 0, .)))
+```
+
+Save
+```{r}
+write_csv(ipcc_props_long, "data/ipcc_mlhfi_props_long.csv")
+write_csv(ipcc_props_wide, "data/ipcc_mlhfi_props_wide.csv")
+```
 
 
