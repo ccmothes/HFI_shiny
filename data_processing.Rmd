@@ -133,6 +133,30 @@ plot_na_map <- function(opts = leafletOptions()) {
 plot_na_map()
 ```
 
+
+# Global Averages
+
+Read in rasters
+```{r}
+rasters <- terra::rast("data/cleaned_rasters.tif")
+```
+
+
+Calculate Annual Average
+```{r}
+global_means <- terra::global(rasters, "mean", na.rm = TRUE)
+```
+
+Save output
+```{r}
+global_means %>% 
+  rownames_to_column(var = "year") %>% 
+  separate(year, sep = "_", into = c("val", "year")) %>% 
+  select(-val) %>% 
+  write_csv("app/app_data/global_means.csv")
+```
+
+
 # Read in Vector data
 
 Only need to run this once:
