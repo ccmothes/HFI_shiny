@@ -151,13 +151,13 @@ ui <- page_navbar(
                     style = "background-color: #121314; border-color: #FFF;",
                     div(
                       class = "card-body d-flex flex-column",
-                      h3(class = "card-title", "REST URL Access"),
-                      p(class = "card-text", "Integrate mlHFI data into your applications and workflows with our REST URL endpoints. Fetch specific regions, time periods, or analysis-ready datasets."),
+                      h3(class = "card-title", "API Access"),
+                      p(class = "card-text", "Integrate mlHFI data into your applications and workflows with our public REST URL endpoints."),
                       div(
                         class = "mt-auto pt-3",
                         actionButton(
                           "go_to_api", 
-                          "Access REST URLs", 
+                          "Access APIs", 
                           icon = icon("code"), 
                           class = "btn btn-secondary w-100"
                           #onclick = "window.open('https://developers.google.com/earth-engine/datasets/catalog', '_blank')"
@@ -197,6 +197,7 @@ ui <- page_navbar(
               p("Please cite: [Citation placeholder]", style = "color: #999;")
             )
             ),
+  ### Data Explorer ----------------------------------
   nav_panel(
     title = "Data Explorer",
     page_sidebar(
@@ -206,12 +207,22 @@ ui <- page_navbar(
         choices = c("Annual Map", "Change Map"),
         selected = "Annual Map"
       ),
+      conditionalPanel("input.map_type == 'Annual Map'",
+                       
       sliderTextInput(
         inputId = "year",
         label = "Select Year:",
         choices = c(1999, 2000, 2001, 2022, 2023, 2024),
         selected = 1999,
         grid = TRUE
+      )),
+      conditionalPanel("input.map_type == 'Change Map'",
+                       em("Change map was calculated as:"),
+                       em("(mean of 2022, 2023, 2024) - (mean of 1999, 2000, 2001)")),
+      checkboxGroupInput("map_layers", "Add Map Layers:",
+                         choices = list("Country Boundaries" = "countries",
+                                        "IPCC Boundaries" = "ipcc"),
+                         selected = NULL
       ),
       #title = "Controls",
     #  sliderInput(
@@ -221,7 +232,7 @@ ui <- page_navbar(
      #   selected = 1999,
      #   sep = ""
      # ),
-      em("For change maps, must select a year greater than 1999"),
+      #em("For change maps, must select a year greater than 1999"),
       ## Regional summaries ------------------
       accordion(
         open = FALSE,
@@ -327,7 +338,7 @@ ui <- page_navbar(
           )
         )
       ),
-      ### Global mean -------------
+      ### Global mean
       card(
         full_screen = TRUE,
         card_header("Mean Annual Change"),
@@ -336,7 +347,7 @@ ui <- page_navbar(
       width = "500px"
     ),
     
-    ## Map content -------------
+    ## Map content
     leafletOutput("map", height = "100%")
   )),
 )
@@ -451,17 +462,70 @@ server <- function(input, output, session) {
                  options = tileOptions(maxNativeZoom = 12))
     }
     
+    # Add/remove boundary layers
+    if ("countries" %in% input$map_layers) {
+      
+      map_proxy %>%
+        addPolygons(
+          data = countries,
+          fillOpacity = 0,
+          weight = 1.5,
+          color = "#BC0032",
+          group = "country_borders",
+          popup = ~ paste(
+            "<strong>",
+            name,
+            "</strong>",
+            "<br>",
+            paste(input$year, "Mean HFI:"),
+            round(get(paste0("mlHFI_",
+                             input$year
+            )), 2)
+          )
+        )
+    } else {
+      # Clear group and control
+      map_proxy %>%
+        clearGroup("country_borders")
+    }
+    
+    if ("ipcc" %in% input$map_layers) {
+      
+      map_proxy %>%
+        addPolygons(
+          data = ipcc,
+          fillOpacity = 0,
+          weight = 1.5,
+          color = "#BC0032",
+          group = "ipcc_borders",
+          popup = ~ paste(
+            "<strong>",
+            NAME,
+            "</strong>",
+            "<br>",
+            paste(input$year, "Mean HFI:"),
+            round(get(paste0("mlHFI_",
+                             input$year
+            )), 2)
+          )
+        )
+    } else {
+      # Clear group and control
+      map_proxy %>%
+        clearGroup("ipcc_borders")
+    }
+    
     
     # Add or remove Country layer
     if (input$add_country) {
-      withProgress({
-        #Sys.sleep(5)  # Simulate loading time
-        
-        # Simulate steps in data loading
-        for (i in 1:5) {
-          incProgress(1 / 5, message = "Loading shapefile...")
-          Sys.sleep(0.5)  # Simulate work
-        }
+      #withProgress({
+        # #Sys.sleep(5)  # Simulate loading time
+        # 
+        # # Simulate steps in data loading
+        # for (i in 1:5) {
+        #   incProgress(1 / 5, message = "Loading shapefile...")
+        #   Sys.sleep(0.5)  # Simulate work
+        # }
         
         map_proxy %>%
           addPolygons(
@@ -489,7 +553,7 @@ server <- function(input, output, session) {
             title = "Average HFI by Country",
             group = "Countries"
           )
-      })
+      # })
     } else {
       # Clear group and control
       map_proxy %>%
@@ -551,13 +615,17 @@ server <- function(input, output, session) {
       })
       
       leafletProxy('map') %>%
-        clearShapes() %>% 
+        clearGroup("selected") %>% 
         setView(lng = zoom()[1],
                 lat = zoom()[2],
                 zoom = 6) %>% 
-        addPolygons(data =  countries %>%
-                      filter(name == input$country),
-                    color = "yellow")
+        addPolygons(
+          data =  countries %>%
+            filter(name == input$country),
+          color = "yellow",
+          fillOpacity = 0,
+          group = "selected"
+        )
     }
     
     
@@ -577,9 +645,17 @@ server <- function(input, output, session) {
       })
       
       leafletProxy('map') %>%
+        clearGroup("selected") %>% 
         setView(lng = zoom()[1],
                 lat = zoom()[2],
-                zoom = 4)
+                zoom = 4) %>% 
+        addPolygons(
+          data =  ipcc %>%
+            filter(NAME == input$ipcc),
+          color = "yellow",
+          fillOpacity = 0,
+          group = "selected"
+        )
     }
     
     
@@ -594,12 +670,18 @@ server <- function(input, output, session) {
               lat = 30,
               zoom = 2)
     
-    # Also optionally clear the country/region selection
+    # Clear the country/region selection
     if (input$level == "Country") {
       updateSelectizeInput(session, "country", selected = "")
     } else {
       updateSelectizeInput(session, "ipcc", selected = "")
     }
+    
+    # Clear all layer check boxes
+    updateCheckboxGroupInput(session, "map_layers", selected = character(0))
+    updateMaterialSwitch(session, "add_country", value = FALSE)
+    updateMaterialSwitch(session, "add_ipcc", value = FALSE)
+    
   })
   
   
@@ -814,7 +896,7 @@ server <- function(input, output, session) {
           arrowhead = 2,
           arrowsize = 1,
           arrowwidth = 2,
-          arrowcolor = "#BC0032",
+          arrowcolor = "yellow", #"#BC0032",
           font = list(color = "#FFFFFF")
         )
     }
@@ -947,10 +1029,10 @@ server <- function(input, output, session) {
       
       
       # Define color scheme
-    colors <- colorRampPalette(c( "#FDE725", "#35B779","#31688E", "#440154"))(251)
+    colors <- colorRampPalette(c("#31688E", "#35B779", "#FDE725"))(251)
         # Highlight selected country
         if (input$country != "") {
-          colors[display_data$name == input$country] <- "#FF6B6B"
+          colors[display_data$name == input$country] <- "yellow"
         }
       
       # Create plotly bar chart
@@ -1155,7 +1237,7 @@ server <- function(input, output, session) {
         type = "scatter",
         mode = "lines+markers",
         name = input$country,
-        line = list(color = "#00bc8c", width = 3)
+        line = list(color = "yellow", width = 3)
       ) %>%
       add_trace(
         data = global_means,
@@ -1484,7 +1566,7 @@ server <- function(input, output, session) {
         y = ~ mean,
         type = "scatter",
         mode = "markers",
-        marker = list(color = "#BC0032", size = 8),
+        marker = list(color = "yellow", size = 8),
         name = "Global Mean",
         legendgroup = "avg",
         showlegend = TRUE

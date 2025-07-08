@@ -68,3 +68,38 @@
 .irs--shiny .irs-single:before {
   border-top-color: #00bc8c !important;
 }
+
+
+/* Change hover background color */
+.selectize-dropdown .option:hover {
+    background-color: #white !important;
+    color: #black !important;
+}
+
+/* Change selected option hover
+.selectize-control.single .selectize-input.input-active {
+    background-color: blue !important;
+}  */
+
+/* Change dropdown option hover */
+.selectize-dropdown-content .option:hover {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Change text color in the search/input field */
+.selectize-input input {
+    color: yellow !important;
+}
+
+
+/* Change text color of selected items in the input */
+.selectize-input .item {
+    color: yellow !important;
+}
+
+/* Change background and text of the highlighted option while typing */
+.selectize-dropdown .option.active {
+    background-color: white !important;
+    color: black !important;
+}
