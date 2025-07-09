@@ -10,7 +10,7 @@ Local data/ folder
 
 ```{r}
 #hfi_1999 <- terra::rast("data/1999_int16.tif")
-rasters <- list.files("data/", pattern = ".tif", full.names = TRUE)
+rasters <- list.files("data/", pattern = ".tif$", full.names = TRUE)
 
 # annual and change rasters
 
@@ -43,7 +43,7 @@ Save time consuming step
 ```{r}
 names(aligned_rasters) <- paste0("mlHFI_", annual_names)
 
-writeRaster(rast(aligned_rasters), "data/cleaned_rasters.tif", overwrite = TRUE)
+writeRaster(rast(aligned_rasters), paste0("data/cleaned_rasters_", Sys.Date(), ".tif"), overwrite = TRUE)
 ```
 
 ## Tile Creation
