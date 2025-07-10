@@ -164,7 +164,7 @@ Only need to run this once:
 ```{r}
 # Load global country borders
 
-world <- ne_countries(returnclass = "sv", scale = "medium", type = "map_units")
+world <- ne_countries(returnclass = "sv", scale = "medium", type = "countries")
 
 
 # save to data/ folder
@@ -211,10 +211,16 @@ leaflet() %>%
 
 # Calculate zonal stats
 
+Read in aligned rasters
+```{r}
+rasters <- rast("data/cleaned_rasters_2025-07-09.tif")
+```
+
+
 ```{r}
 
 # Create a blank raster matching the resolution/extent of r
-poly_raster <- rast(aligned_rasters[[1]])
+poly_raster <- rast(rasters[[1]])
 
 
 # Rasterize the polygon vector based on IDs
@@ -236,18 +242,18 @@ Calculate over all years
 
 ```{r}
 
-zonal_ipcc_all <- map(aligned_rasters, ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
+zonal_ipcc_all <- map(as.list(rasters), ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
 
-zonal_country_all <- map(aligned_rasters, ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
+zonal_country_all <- map(as.list(rasters), ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
 
 ```
 
 Add names for combining years
 
 ```{r}
-names(zonal_ipcc_all) <- paste0("mlHFI_", annual_names)
+names(zonal_ipcc_all) <- names(rasters)
 
-names(zonal_country_all) <- paste0("mlHFI_", annual_names)
+names(zonal_country_all) <- names(rasters)
 ```
 
 Combine and clean
