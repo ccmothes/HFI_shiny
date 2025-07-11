@@ -259,13 +259,15 @@ names(zonal_country_all) <- names(rasters)
 Combine and clean
 
 ```{r}
-ipcc_all <- bind_rows(zonal_ipcc_all, .id = "year") %>%
+ipcc_all <- map(zonal_ipcc_all, function(x){ x %>% rename_with(~"mlHFI_prediction", contains("mlHFI"))}) %>%
+  bind_rows(.id = "year") %>%
   pivot_wider(names_from = year, 
-              values_from = `mlHFI prediction`)
+              values_from = `mlHFI_prediction`)
 
-country_all <-  bind_rows(zonal_country_all, .id = "year") %>%
+country_all <-  map(zonal_country_all, function(x){ x %>% rename_with(~"mlHFI_prediction", contains("mlHFI"))}) %>%
+  bind_rows(.id = "year") %>%
   pivot_wider(names_from = year, 
-              values_from = `mlHFI prediction`)
+              values_from = `mlHFI_prediction`)
 ```
 
 Add to polygons and save
