@@ -475,7 +475,7 @@ write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 Read in aligned rasters
 
 ```{r}
-rasters <- terra::rast("data/cleaned_rasters.tif")
+rasters <- terra::rast("data/cleaned_rasters_2025-07-09.tif")
 ```
 
 Create test chunks
