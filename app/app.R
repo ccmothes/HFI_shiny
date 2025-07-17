@@ -2,6 +2,7 @@ library(shiny)
 library(shinyWidgets)
 library(shinycssloaders)
 library(leaflet)
+library(leaflegend)
 library(bslib)
 library(dplyr)
 library(tidyr)
@@ -438,6 +439,65 @@ server <- function(input, output, session) {
   })
   
   
+  ## Reactive map legend
+  
+  map_legend <- reactive({
+    
+    if(input$map_type == "Annual Map") {
+      
+      colors <- c("#000004", "#1b0c42", "#4a0c6b", "#781c6d", "#a52c60", 
+                  "#cf4446", "#ed6925", "#fb9b06", "#f7d03c", "#fcffa4")
+      values <- seq(0, 94, length.out = 10)
+      
+      title <- "mlHFI"
+      
+      lab_format <- function(x) {
+        prettyNum(x, format = "f", big.mark = ",", digits =
+                    3, scientific = FALSE)
+      }
+      
+      pal <- colorNumeric(palette = colors, domain = c(0, 94))
+      
+      return(list(values = values, title = title, num_format = lab_format, pal = pal))
+      
+    } else {
+      
+      if(input$map_type == "Change Map") {
+        
+        colors <- c("#d01c8b", "#f1b6da", "transparent", "#b8e186", "#4dac26")
+        
+        values <- c(-31,31)
+        
+        title <- "Change in mlHFI"
+        
+        # Edit labels
+        customLabFormat <- function(x) {
+          case_when(
+            x <= -24.9 ~ "<= -25",
+            x >= 24.9 ~ ">= 25",
+            abs(x) < 0.1 ~ "0",
+            TRUE ~ as.character(round(x))
+          )
+        }
+        
+        
+        # Create color pal
+        pal <- colorNumeric(
+          palette = colors, 
+          domain = c(-31, 31),
+          na.color = "transparent"
+        )
+        
+        return(list(values = values, title = title, num_format = customLabFormat, pal = pal))
+        
+      } 
+      
+    }
+  })
+
+ 
+  
+  
   # Map output -------------------------------------
   output$map <- renderLeaflet({
     leaflet() %>%
@@ -467,11 +527,13 @@ server <- function(input, output, session) {
       }
     } else if (input$map_type == "Change Map") {
      # if (input$year == 1999) {
-        paste0(
-          "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_",
-          input$year,
-          "_3857_12levels/MapServer/tile/{z}/{y}/{x}"
-        )
+        # paste0(
+        #   "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_",
+        #   input$year,
+        #   "_3857_12levels/MapServer/tile/{z}/{y}/{x}"
+        # )
+      "https://tiles.arcgis.com/tiles/KNdRU5cN6ENqCTjk/arcgis/rest/services/diff_2022to2024_vs_1999to2001/MapServer/tile/{z}/{y}/{x}"
+      
       # } else {
       #   paste0(
       #     "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_Change_",
@@ -498,9 +560,21 @@ server <- function(input, output, session) {
     # # Add base tile layer if a URL is provided
     if (!is.null(url())) {
       map_proxy %>%
+        clearGroup("hfi") %>% 
+        clearControls() %>% 
         addTiles(url(),
                  group = "hfi",
-                 options = tileOptions(maxNativeZoom = 12))
+                 options = tileOptions(maxNativeZoom = 12)) %>% 
+        addLegendNumeric(
+          position = "bottomright",
+          pal = map_legend()[["pal"]],
+          values = map_legend()[["values"]],
+          title = map_legend()[["title"]],
+          numberFormat = map_legend()[["num_format"]],
+          group = "hfi",
+          height = 150,
+          decreasing = TRUE
+        )
     }
     
     # Add/remove boundary layers
@@ -663,7 +737,8 @@ server <- function(input, output, session) {
         addPolygons(
           data =  countries %>%
             filter(name == input$country),
-          color = "#00BCD4",
+          color = "#00bc8c",
+          opacity = 1,
           fillOpacity = 0,
           group = "selected"
         )
@@ -693,7 +768,8 @@ server <- function(input, output, session) {
         addPolygons(
           data =  ipcc %>%
             filter(NAME == input$ipcc),
-          color = "#00BCD4",
+          color = "#00bc8c",
+          opacity = 1,
           fillOpacity = 0,
           group = "selected"
         )
@@ -846,7 +922,7 @@ server <- function(input, output, session) {
           arrowhead = 2,
           arrowsize = 1,
           arrowwidth = 2,
-          arrowcolor = "#00BCD4", #"#BC0032",
+          arrowcolor = "#00bc8c", #"#BC0032",
           font = list(color = "#FFFFFF")
         )
     }
@@ -952,7 +1028,7 @@ server <- function(input, output, session) {
           arrowhead = 2,
           arrowsize = 1,
           arrowwidth = 2,
-          arrowcolor = "#00BCD4",
+          arrowcolor = "#00bc8c",
           font = list(color = "#FFFFFF")
         )
     }
@@ -984,7 +1060,7 @@ server <- function(input, output, session) {
     colors <- viridis::inferno(251, direction = -1)
         # Highlight selected country
         if (input$country != "") {
-          colors[display_data$name == input$country] <- "#00BCD4"
+          colors[display_data$name == input$country] <- "#00bc8c"
         }
       
       # Create plotly bar chart
@@ -1160,7 +1236,7 @@ server <- function(input, output, session) {
         mode = "lines+markers",
         name = input$country,
         line = list(color = "lightgray", width = 3),
-        marker = list(color = "#00BCD4") 
+        marker = list(color = "#00bc8c") 
       ) %>%
       add_trace(
         data = global_means,
@@ -1220,7 +1296,7 @@ server <- function(input, output, session) {
     req(input$country)
     
     # Create color vector for classes
-    class_colors <- c("Natural (<10)" = "#1b9e77", "Used (>10 & <35)" = "#7570b3", "Settlements (>35)" = "#d95f02")
+    class_colors <- c("Natural (<10)" = "#7B2982", "Used (>10 & <35)" = "#E16462", "Settlements (>35)" = "#F0F921")
     
     # Create plotly stacked bar chart
     plot_ly(
@@ -1298,11 +1374,11 @@ server <- function(input, output, session) {
       x = ~value,
       y = ~count,
       type = "bar",
-      marker = list(color = "#00BCD4", opacity = 0.75)
+      marker = list(color = "#00bc8c", opacity = 0.75)
     ) %>%
       layout(
         title = list(
-          text = paste("HFI Regional Distribution for", input$year),
+          text = paste(input$year, input$country, "Distribution of HFI Values"),
           font = list(color = "#FFFFFF", size = 12),
           x = 0.5
         ),
@@ -1354,7 +1430,8 @@ server <- function(input, output, session) {
         type = "scatter",
         mode = "lines+markers",
         name = input$ipcc,
-        line = list(color = "#00BCD4", width = 3)
+        line = list(color = "lightgray", width = 3),
+        marker = list(color = "#00bc8c")
       ) %>%
       add_trace(
         data = global_means,
@@ -1414,7 +1491,7 @@ server <- function(input, output, session) {
     req(input$ipcc)
     
     # Create color vector for classes
-    class_colors <- c("Natural (<10)" = "#1b9e77", "Used (>10 & <35)" = "#7570b3", "Settlements (>35)" = "#d95f02")
+    class_colors <- c("Natural (<10)" = "#7B2982", "Used (>10 & <35)" = "#E16462", "Settlements (>35)" = "#F0F921")
     
     # Create plotly stacked bar chart
     plot_ly(
@@ -1487,11 +1564,11 @@ server <- function(input, output, session) {
       x = ~value,
       y = ~count,
       type = "bar",
-      marker = list(color = "#00BCD4", opacity = 0.75)
+      marker = list(color = "#00bc8c", opacity = 0.75)
     ) %>%
       layout(
         title = list(
-          text = paste("HFI Regional Distribution for", input$year),
+          text = paste(input$year, input$ipcc, "Distribution of HFI Values"),
           font = list(color = "#FFFFFF", size = 12),
           x = 0.5
         ),

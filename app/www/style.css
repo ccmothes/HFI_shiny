@@ -89,13 +89,13 @@
 
 /* Change text color in the search/input field */
 .selectize-input input {
-    color: #00BCD4 !important;
+    color: #00bc8c !important;
 }
 
 
 /* Change text color of selected items in the input */
 .selectize-input .item {
-    color: #00BCD4 !important;
+    color: #00bc8c !important;
 }
 
 /* Change background and text of the highlighted option while typing */
