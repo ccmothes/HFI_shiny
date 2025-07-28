@@ -629,3 +629,32 @@ write_csv(ipcc_props_wide, "data/ipcc_mlhfi_props_wide.csv")
 ```
 
 
+## Reclassify Change Map
+```{r}
+change_update <- change
+
+change_update[change_update >= -10 & change_update <= 10] <- NA
+
+```
+
+Check new values
+```{r}
+change_vals <- terra::freq(change_update)
+```
+
+Still inclusive of -10 and 10...keeping for now
+Inspect values
+```{r}
+plot <- ggplot(change_vals) +
+  geom_col(aes(x = value, y = count))
+
+ggplotly(plot)
+```
+
+
+```{r}
+writeRaster(change_update, "data/extreme_diff_2022to2024_vs_1999to2000.tif")
+```
+
+
+
