@@ -651,9 +651,17 @@ plot <- ggplot(change_vals) +
 ggplotly(plot)
 ```
 
+Reproject for Leaflet
+```{r}
+change_update_prj <- terra::project(change_update, "EPSG:3857")
+```
+
 
 ```{r}
 writeRaster(change_update, "data/extreme_diff_2022to2024_vs_1999to2000.tif")
+
+# save projected raster too
+writeRaster(change_update_prj, "data/extreme_prj_diff_2022to2024_vs_1999to2000.tif")
 ```
 
 
