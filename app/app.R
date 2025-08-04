@@ -254,7 +254,8 @@ ui <- page_navbar(
       )),
       conditionalPanel("input.map_type == 'Change Map'",
                        em("Change map was calculated as:"),
-                       em("(mean of 2022, 2023, 2024) - (mean of 1999, 2000, 2001)")),
+                       em("(mean of 2022, 2023, 2024) - (mean of 1999, 2000, 2001)."),
+                       em("Only changes greater than 10 and less than -10 are shown.")),
       checkboxGroupInput("map_layers", "Add Map Layers:",
                          choices = list("Country Boundaries" = "countries",
                                         "IPCC Boundaries" = "ipcc"),
@@ -466,15 +467,15 @@ server <- function(input, output, session) {
         
         colors <- c("#d01c8b", "#f1b6da", "transparent", "#b8e186", "#4dac26")
         
-        values <- c(-31,31)
+        values <- c(-41,41)
         
         title <- "Change in mlHFI"
         
         # Edit labels
         customLabFormat <- function(x) {
           case_when(
-            x <= -24.9 ~ "<= -25",
-            x >= 24.9 ~ ">= 25",
+            x <= -34.9 ~ "<= -35",
+            x >= 34.9 ~ ">= 35",
             abs(x) < 0.1 ~ "0",
             TRUE ~ as.character(round(x))
           )
@@ -484,7 +485,7 @@ server <- function(input, output, session) {
         # Create color pal
         pal <- colorNumeric(
           palette = colors, 
-          domain = c(-31, 31),
+          domain = c(-41, 41),
           na.color = "transparent"
         )
         
@@ -515,16 +516,13 @@ server <- function(input, output, session) {
   # change tile url based on selected year and map type
   url <- reactive({
     if (input$map_type == "Annual Map") {
-      
-      if(input$year == 1999) {
-        "https://tiles.arcgis.com/tiles/KNdRU5cN6ENqCTjk/arcgis/rest/services/exp318_seed76_MaxGlob_1999_mlhfi/MapServer/tile/{z}/{y}/{x}"
-      } else {
+   
       paste0(
-        "https://tiles.arcgis.com/tiles/swlKRWoduvVuwMcX/arcgis/rest/services/TP_",
+        "https://tiles.arcgis.com/tiles/KNdRU5cN6ENqCTjk/arcgis/rest/services/exp318_seed76_MaxGlob_fixed_",
         input$year,
-        "_3857_12levels/MapServer/tile/{z}/{y}/{x}"
+        "_mlhfi_mosaic/MapServer/tile/{z}/{y}/{x}"
       )
-      }
+
     } else if (input$map_type == "Change Map") {
      # if (input$year == 1999) {
         # paste0(
@@ -532,7 +530,7 @@ server <- function(input, output, session) {
         #   input$year,
         #   "_3857_12levels/MapServer/tile/{z}/{y}/{x}"
         # )
-      "https://tiles.arcgis.com/tiles/KNdRU5cN6ENqCTjk/arcgis/rest/services/diff_2022to2024_vs_1999to2001/MapServer/tile/{z}/{y}/{x}"
+      "https://tiles.arcgis.com/tiles/KNdRU5cN6ENqCTjk/arcgis/rest/services/extreme_diff_2022to2024_vs_1999to2000_tif/MapServer/tile/{z}/{y}/{x}"
       
       # } else {
       #   paste0(
