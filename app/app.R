@@ -465,7 +465,7 @@ server <- function(input, output, session) {
       
       if(input$map_type == "Change Map") {
         
-        colors <- c("#d01c8b", "#f1b6da", "transparent", "#b8e186", "#4dac26")
+        colors <- c("#4dac26", "#b8e186", "transparent", "#f1b6da", "#d01c8b")
         
         values <- c(-41,41)
         
@@ -486,7 +486,8 @@ server <- function(input, output, session) {
         pal <- colorNumeric(
           palette = colors, 
           domain = c(-41, 41),
-          na.color = "transparent"
+          na.color = "transparent",
+          reverse = TRUE
         )
         
         return(list(values = values, title = title, num_format = customLabFormat, pal = pal))
