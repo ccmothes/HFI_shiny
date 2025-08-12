@@ -6,51 +6,44 @@ source("setup.R")
 
 ## Read in rasters
 
-From L: Drive
+Local data/ folder
 
 ```{r}
-# read in raw files from L drive:
-hfi_1999 <- terra::rast("L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data\\1999_int16.tif")
+#hfi_1999 <- terra::rast("data/1999_int16.tif")
+rasters <- list.files("data/", pattern = ".tif$", full.names = TRUE)
 
+# annual and change rasters
 
-hfi_2023 <- terra::rast("L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data\\2023_int16.tif")
+change <- terra::rast(rasters[str_detect(rasters, "diff_")])
 
-hfi_change <- terra::rast("L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data\\2023m1999_int16.tif")
+annual <- map(rasters[str_detect(rasters, "exp318_")], terra::rast)
+```
+
+Get file names to use later on
+
+```{r}
+annual_names <- map(rasters[str_detect(rasters, "exp318_")], ~str_extract(.x, "(?<=_)\\d{4}(?=_)"))
+```
+
+Match extents
+
+```{r}
+# Define common extent
+common_extent <- ext(-180, 180, -90, 90)
+
+# align all rasters
+aligned_rasters <- map(annual, function(r) {
+  extend(r, common_extent)
+})
 
 ```
 
-Local data/ folder (on Mac)
+Save time consuming step
 
 ```{r}
-hfi_1999 <- terra::rast("data/1999_int16.tif")
-```
+names(aligned_rasters) <- paste0("mlHFI_", annual_names)
 
-## Projection
-
-Project for Leaflet
-
-```{r}
-# this will take a while...1 hour on Mac
-system.time(
-hfi_1999_projected <- terra::project(hfi_1999, "EPSG:3857")
-)
-
-writeRaster(hfi_1999_projected, "data/hfi_1999_leaflet.tif")
-
-```
-
-## Aggregate to \~ 1km, project and save
-
-```{r}
-# aggregate
-hfi_change_1km <- terra::aggregate(hfi_change, fact = 3, fun = mean)
-
-# project; the output resolution is 464km....
-hfi_change_1km_leaflet <- terra::project(hfi_change_1km, "EPSG:3857")
-
-
-# save
-writeRaster(hfi_change_1km_leaflet, "L:\\Projects_active\\2024_x2025_Human_Footprint_Index\\data/2023_1999_900m_leaflet.tif")
+writeRaster(rast(aligned_rasters), paste0("data/cleaned_rasters_", Sys.Date(), ".tif"), overwrite = TRUE)
 ```
 
 ## Tile Creation
@@ -140,6 +133,30 @@ plot_na_map <- function(opts = leafletOptions()) {
 plot_na_map()
 ```
 
+
+# Global Averages
+
+Read in rasters
+```{r}
+rasters <- terra::rast("data/cleaned_rasters.tif")
+```
+
+
+Calculate Annual Average
+```{r}
+global_means <- terra::global(rasters, "mean", na.rm = TRUE)
+```
+
+Save output
+```{r}
+global_means %>% 
+  rownames_to_column(var = "year") %>% 
+  separate(year, sep = "_", into = c("val", "year")) %>% 
+  select(-val) %>% 
+  write_csv("app/app_data/global_means.csv")
+```
+
+
 # Read in Vector data
 
 Only need to run this once:
@@ -147,7 +164,7 @@ Only need to run this once:
 ```{r}
 # Load global country borders
 
-world <- ne_countries(returnclass = "sv", scale = "large")
+world <- ne_countries(returnclass = "sv", scale = "medium", type = "countries")
 
 
 # save to data/ folder
@@ -194,10 +211,16 @@ leaflet() %>%
 
 # Calculate zonal stats
 
+Read in aligned rasters
+```{r}
+rasters <- rast("data/cleaned_rasters_2025-07-09.tif")
+```
+
+
 ```{r}
 
 # Create a blank raster matching the resolution/extent of r
-poly_raster <- rast(hfi_1999)
+poly_raster <- rast(rasters[[1]])
 
 
 # Rasterize the polygon vector based on IDs
@@ -206,60 +229,64 @@ ipcc_poly <- rasterize(ipcc, poly_raster, field = "NAME")
 country_poly <- rasterize(countries, poly_raster, field = "name")
 
 # 1.5 minutes
-system.time(
-  zonal_ipcc <- terra::zonal(hfi_1999, ipcc_poly, fun = "mean", na.rm = TRUE)
-)
-
-system.time(
-  zonal_country <- terra::zonal(hfi_1999, country_poly, fun = "mean", na.rm = TRUE)
-)
+# system.time(
+#   zonal_ipcc <- terra::zonal(hfi_1999, ipcc_poly, fun = "mean", na.rm = TRUE)
+# )
+# 
+# system.time(
+#   zonal_country <- terra::zonal(hfi_1999, country_poly, fun = "mean", na.rm = TRUE)
+# )
 ```
 
 Calculate over all years
 
 ```{r}
 
-# Create a blank raster matching the resolution/extent of r
-poly_raster <- rast(hfi_1999)
+zonal_ipcc_all <- map(as.list(rasters), ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
 
+zonal_country_all <- map(as.list(rasters), ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
 
-# Rasterize the polygon vector based on IDs
-ipcc_poly <- rasterize(ipcc, poly_raster, field = "NAME")
+```
 
-country_poly <- rasterize(countries, poly_raster, field = "name")
+Add names for combining years
 
+```{r}
+names(zonal_ipcc_all) <- names(rasters)
 
-zonal_ipcc_all <- map(list(hfi_1999, hfi_2023), ~ terra::zonal(.x, ipcc_poly, fun = "mean", na.rm = TRUE))
+names(zonal_country_all) <- names(rasters)
+```
 
-zonal_country_all <- map(list(hfi_1999, hfi_2023), ~ terra::zonal(.x, country_poly, fun = "mean", na.rm = TRUE))
+Combine and clean
 
+```{r}
+ipcc_all <- map(zonal_ipcc_all, function(x){ x %>% rename_with(~"mlHFI_prediction", contains("mlHFI"))}) %>%
+  bind_rows(.id = "year") %>%
+  pivot_wider(names_from = year, 
+              values_from = `mlHFI_prediction`)
+
+country_all <-  map(zonal_country_all, function(x){ x %>% rename_with(~"mlHFI_prediction", contains("mlHFI"))}) %>%
+  bind_rows(.id = "year") %>%
+  pivot_wider(names_from = year, 
+              values_from = `mlHFI_prediction`)
 ```
 
 Add to polygons and save
 
 ```{r}
 # countries
-country_all <- reduce(zonal_country_all, left_join, by = "name")
-
 countries <- merge(countries, country_all, by = "name")
 
 writeVector(countries, "app/app_data/countries.shp", overwrite = TRUE)
 
 # ipcc regions
-ipcc_all <- reduce(zonal_ipcc_all, left_join, by = "NAME")
-
 ipcc <- merge(ipcc, ipcc_all, by = "NAME")
 
 writeVector(ipcc, "app/app_data/IPCC_regions/referenceRegions.shp", overwrite = TRUE)
 ```
 
-Remove water pixels
-
-```{r}
-mask_1999 <- terra::mask(hfi_1999, countries)
-```
-
 # Time series
+
+## MS DATA
 
 Test time series workflow and charts on Mississippi region
 
@@ -442,3 +469,200 @@ write_csv(results, "app/app_data/proportion_timeseries.csv")
 
 write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 ```
+
+## REAL DATA
+
+Read in aligned rasters
+
+```{r}
+rasters <- terra::rast("data/cleaned_rasters_2025-07-09.tif")
+```
+
+Create test chunks
+
+```{r}
+rasters_test <- rasters[[2:3]]
+
+countries_test <- countries[1:10]
+```
+
+
+## Country Level
+
+### Frequency Distribution
+
+
+This is the most time consuming step
+```{r}
+freqs_all <- terra::freq(rasters, zones = countries)
+```
+
+
+Join and clean final frequency data
+```{r}
+# add ID column to countries to join name
+countries_join <- countries %>%
+  as.data.frame() %>%
+  select(name) %>%
+  rowid_to_column(var = "zone")
+
+# clean
+freqs_clean <- freqs_all %>%
+  mutate(year = case_when(layer == 1 ~ 1999,
+                          layer == 2 ~ 2000,
+                          layer == 3 ~ 2001,
+                          layer == 4 ~ 2022,
+                          layer == 5 ~ 2023,
+                          layer == 6 ~ 2024)) %>%
+  left_join(countries_join, by = "zone") %>%
+  select(-c(layer, zone))
+```
+
+Save
+```{r}
+write_csv(freqs_clean, "data/country_mlhfi_distribution.csv")
+```
+
+
+### Proportions
+```{r}
+# Proportion calculation
+props_long <- freqs_clean %>%
+  mutate(
+    category = case_when(
+      value < 10 ~ "low",
+      value >= 10 & value <= 35 ~ "medium",
+      value > 35 ~ "high"
+    )
+  ) %>%
+  # Group by country, year, and category
+  group_by(name, year, category) %>%
+  summarise(category_count = sum(count), .groups = "drop") %>%
+  # Calculate total count per country-year
+  group_by(name, year) %>%
+  mutate(
+    total_count = sum(category_count),
+    proportion = category_count / total_count
+  ) %>%
+  ungroup()
+
+props_wide <- props_long %>%
+  select(-c(category_count, total_count)) %>%
+  pivot_wider(names_from = year, values_from = proportion) %>%
+  mutate(across(everything(), ~ifelse(is.na(.), 0, .)))
+```
+
+Save
+```{r}
+write_csv(props_long, "data/country_mlhfi_props_long.csv")
+write_csv(props_wide, "data/country_mlhfi_props_wide.csv")
+```
+
+
+## IPCC Level
+
+### Frequency Distribution
+
+```{r}
+freqs_ipcc <- terra::freq(rasters, zones = ipcc)
+```
+
+Join and clean final frequency data
+```{r}
+# add ID column to countries to join name
+ipcc_join <- ipcc %>%
+  as.data.frame() %>%
+  select(NAME) %>%
+  rowid_to_column(var = "zone")
+
+# clean
+freqs_ipcc_clean <- freqs_ipcc %>%
+  mutate(year = case_when(layer == 1 ~ 1999,
+                          layer == 2 ~ 2000,
+                          layer == 3 ~ 2001,
+                          layer == 4 ~ 2022,
+                          layer == 5 ~ 2023,
+                          layer == 6 ~ 2024)) %>%
+  left_join(ipcc_join, by = "zone") %>%
+  select(-c(layer, zone))
+```
+
+Save
+```{r}
+write_csv(freqs_ipcc_clean, "data/ipcc_mlhfi_distribution.csv")
+```
+
+
+
+### Proportions
+```{r}
+# Proportion calculation
+ipcc_props_long <- freqs_ipcc_clean %>%
+  mutate(
+    category = case_when(
+      value < 10 ~ "low",
+      value >= 10 & value <= 35 ~ "medium",
+      value > 35 ~ "high"
+    )
+  ) %>%
+  # Group by country, year, and category
+  group_by(NAME, year, category) %>%
+  summarise(category_count = sum(count), .groups = "drop") %>%
+  # Calculate total count per country-year
+  group_by(NAME, year) %>%
+  mutate(
+    total_count = sum(category_count),
+    proportion = category_count / total_count
+  ) %>%
+  ungroup()
+
+ipcc_props_wide <- props_long %>%
+  select(-c(category_count, total_count)) %>%
+  pivot_wider(names_from = year, values_from = proportion) %>%
+  mutate(across(everything(), ~ifelse(is.na(.), 0, .)))
+```
+
+Save
+```{r}
+write_csv(ipcc_props_long, "data/ipcc_mlhfi_props_long.csv")
+write_csv(ipcc_props_wide, "data/ipcc_mlhfi_props_wide.csv")
+```
+
+
+## Reclassify Change Map
+```{r}
+change_update <- change
+
+change_update[change_update >= -10 & change_update <= 10] <- NA
+
+```
+
+Check new values
+```{r}
+change_vals <- terra::freq(change_update)
+```
+
+Still inclusive of -10 and 10...keeping for now
+Inspect values
+```{r}
+plot <- ggplot(change_vals) +
+  geom_col(aes(x = value, y = count))
+
+ggplotly(plot)
+```
+
+Reproject for Leaflet
+```{r}
+change_update_prj <- terra::project(change_update, "EPSG:3857")
+```
+
+
+```{r}
+writeRaster(change_update, "data/extreme_diff_2022to2024_vs_1999to2000.tif")
+
+# save projected raster too
+writeRaster(change_update_prj, "data/extreme_prj_diff_2022to2024_vs_1999to2000.tif")
+```
+
+
+

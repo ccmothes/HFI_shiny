@@ -1,10 +1,105 @@
 /* HFI App Styling Sheet */
 
 
-/* hacky way to make leaflet darktheme */
+/* hacky way to make leaflet darktheme
 .leaflet-layer,
 .leaflet-control-zoom-in,
 .leaflet-control-zoom-out,
 .leaflet-control-attribution {
   filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
+*/
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 15px;
+}
+
+::-webkit-scrollbar-track {
+  background: black;
+}
+
+::-webkit-scrollbar-thumb {
+  background: white;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: white;
+}
+
+/* Firefox scrollbar (alternative approach) */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: white black;
+}
+
+
+
+/* Slider bar (active track) */
+.irs--shiny .irs-bar {
+  border-top: #00bc8c;
+  border-bottom: #00bc8c;
+  background: #00bc8c !important;
+}
+
+/* Slider handle (dot) */
+.irs--shiny .irs-handle > i:first-child {
+  background: #00bc8c !important;
+}
+
+/* Slider handle border */
+.irs--shiny .irs-handle {
+  border-color: #00bc8c !important;
+  background-color: #00bc8c !important;
+}
+
+/* Value labels (from, to, single) */
+.irs--shiny .irs-from, 
+.irs--shiny .irs-to, 
+.irs--shiny .irs-single {
+  background: #00bc8c !important;
+}
+
+/* Value label arrows */
+.irs--shiny .irs-from:before, 
+.irs--shiny .irs-to:before, 
+.irs--shiny .irs-single:before {
+  border-top-color: #00bc8c !important;
+}
+
+
+/* Change hover background color */
+.selectize-dropdown .option:hover {
+    background-color: #white !important;
+    color: #black !important;
+}
+
+/* Change selected option hover
+.selectize-control.single .selectize-input.input-active {
+    background-color: blue !important;
+}  */
+
+/* Change dropdown option hover */
+.selectize-dropdown-content .option:hover {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Change text color in the search/input field */
+.selectize-input input {
+    color: #00bc8c !important;
+}
+
+
+/* Change text color of selected items in the input */
+.selectize-input .item {
+    color: #00bc8c !important;
+}
+
+/* Change background and text of the highlighted option while typing */
+.selectize-dropdown .option.active {
+    background-color: white !important;
+    color: black !important;
 }
