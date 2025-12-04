@@ -29,16 +29,6 @@ ipcc <- read_sf("app_data/IPCC_regions/referenceRegions.shp") %>%
 
 countries <- read_sf("app_data/countries.shp") %>% arrange(name)
 
-# Generate sample data
-set.seed(123)
-years <- c(1999, 2000, 2001, 2022, 2023, 2024)
-#years <- 1999:2023
-locations <- data.frame(
-  lat = rep(runif(10, 35, 45), length(years)),
-  lng = rep(runif(10, -100, -80), length(years)),
-  year = rep(years, each = 10),
-  value = runif(10 * length(years), 10, 100)
-)
 
 global_means <- read_csv("app_data/global_means.csv")
 
@@ -248,7 +238,7 @@ ui <- page_navbar(
       sliderTextInput(
         inputId = "year",
         label = "Select Year:",
-        choices = c(1999, 2000, 2001, 2022, 2023, 2024),
+        choices = 1999:2024,
         selected = 1999,
         grid = TRUE
       )),
@@ -261,15 +251,6 @@ ui <- page_navbar(
                                         "IPCC Boundaries" = "ipcc"),
                          selected = NULL
       ),
-      #title = "Controls",
-    #  sliderInput(
-     #   "year",
-     #   "Select Year:",
-     #   choices = c(1999, 2000, 2001, 2022, 2023, 2024),
-     #   selected = 1999,
-     #   sep = ""
-     # ),
-      #em("For change maps, must select a year greater than 1999"),
       ## Regional summaries ------------------
       accordion(
         open = FALSE,
@@ -519,9 +500,9 @@ server <- function(input, output, session) {
     if (input$map_type == "Annual Map") {
    
       paste0(
-        "https://tiles.arcgis.com/tiles/KNdRU5cN6ENqCTjk/arcgis/rest/services/exp318_seed76_MaxGlob_fixed_",
+        "https://tiles.arcgis.com/tiles/KNdRU5cN6ENqCTjk/arcgis/rest/services/Global_",
         input$year,
-        "_mlhfi_mosaic/MapServer/tile/{z}/{y}/{x}"
+        "_mlhfi_mosaic_tiled/MapServer/tile/{z}/{y}/{x}"
       )
 
     } else if (input$map_type == "Change Map") {
@@ -1596,10 +1577,7 @@ server <- function(input, output, session) {
   ### Global time series (kept from original) -----------------------
   output$timeSeries <- renderPlotly({
     # Data preparation
-    # avg_data <- locations %>%
-    #   group_by(year) %>%
-    #   summarize(avg_value = mean(value))
-    
+
     # Create Plotly figure
     plot_ly(
       global_means,
