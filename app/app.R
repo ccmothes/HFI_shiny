@@ -77,6 +77,10 @@ ipcc_freqs <- read_csv("app_data/ipcc_mlhfi_distribution.csv") %>%
   )
 
 
+# vector of years
+years <- 1999:2024
+
+
 # Create a dark theme
 my_theme <- bs_theme(
   version = 5,
