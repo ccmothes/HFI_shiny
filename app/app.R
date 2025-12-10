@@ -442,7 +442,7 @@ server <- function(input, output, session) {
                     3, scientific = FALSE)
       }
       
-      pal <- colorNumeric(palette = colors, domain = c(0, 94))
+      pal <- colorNumeric(palette = rev(colors), domain = c(0, 94))
       
       return(list(values = values, title = title, num_format = lab_format, pal = pal))
       
