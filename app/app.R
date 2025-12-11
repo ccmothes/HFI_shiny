@@ -115,7 +115,10 @@ ui <- page_navbar(
                 style = "background-color: #212426;",
                 h1("Machine Learning Human Footprint Index (mlHFI)", style = "color: #00bc8c;"),
                 p(class = "lead", "Explore global human impact on the environment through interactive visualization tools and data resources"),
-                p("The mlHFI quantifies human influence on the Earth's land surface based on {insert text}.")
+                p("The mlHFI quantifies human influence on the Earth's land surface  using a convolutional neural network (CNN) 
+                  trained on an existing Human Footprint Index (HFI) dataset, with Landsat imagery as input features. 
+                  The ml-HFI ranges from 0 to 100, where 0 represents intact natural areas and higher values indicate 
+                  increasing human pressure. Global annual data is available at 300m resolution from 1999-2024.")
               ),
               
               # Cards section
@@ -145,9 +148,9 @@ ui <- page_navbar(
                 )
               ),
               
-              # Second row - Three other cards
+              # Second row - Two other cards
               div(
-                class = "row row-cols-1 row-cols-md-3 g-4",
+                class = "row row-cols-1 row-cols-md-2 g-4",
                 
                 # Card 2: Google Earth Engine
                 div(
@@ -173,31 +176,31 @@ ui <- page_navbar(
                   )
                 ),
                 
-                # Card 3: REST URL Access
-                div(
-                  class = "col",
-                  div(
-                    class = "card h-100",
-                    style = "background-color: #121314; border-color: #FFF;",
-                    div(
-                      class = "card-body d-flex flex-column",
-                      h3(class = "card-title", "API Access"),
-                      p(class = "card-text", "Integrate mlHFI data into your applications and workflows with our public REST URL endpoints."),
-                      div(
-                        class = "mt-auto pt-3",
-                        actionButton(
-                          "go_to_api", 
-                          "Access APIs", 
-                          icon = icon("code"), 
-                          class = "btn btn-secondary w-100"
-                          #onclick = "window.open('https://developers.google.com/earth-engine/datasets/catalog', '_blank')"
-                        )
-                      )
-                    )
-                  )
-                ),
+                # # Card 3: REST URL Access
+                # div(
+                #   class = "col",
+                #   div(
+                #     class = "card h-100",
+                #     style = "background-color: #121314; border-color: #FFF;",
+                #     div(
+                #       class = "card-body d-flex flex-column",
+                #       h3(class = "card-title", "API Access"),
+                #       p(class = "card-text", "Integrate mlHFI data into your applications and workflows with our public REST URL endpoints."),
+                #       div(
+                #         class = "mt-auto pt-3",
+                #         actionButton(
+                #           "go_to_api", 
+                #           "Access APIs", 
+                #           icon = icon("code"), 
+                #           class = "btn btn-secondary w-100"
+                #           #onclick = "window.open('https://developers.google.com/earth-engine/datasets/catalog', '_blank')"
+                #         )
+                #       )
+                #     )
+                #   )
+                # ),
                 
-                # Card 4: Raw Data Download
+                # Card 3: Raw Data Download
                 div(
                   class = "col",
                   div(
@@ -851,7 +854,7 @@ server <- function(input, output, session) {
     ) %>%
       layout(
         title = list(
-          text = "Distribution of mean HFI per country",
+          text = paste(input$year, "Distribution of Mean HFI per Country"),
           font = list(size = 14, color = "#FFFFFF"),
           y = 0.9
         ),
@@ -952,7 +955,7 @@ server <- function(input, output, session) {
     ) %>%
       layout(
         title = list(
-          text = "Distribution of Mean HFI per IPCC Region",
+          text = paste(input$year, "Distribution of Mean HFI per IPCC Region"),
           font = list(size = 14, color = "#FFFFFF"),
           y = 0.9
         ),
@@ -1303,7 +1306,7 @@ server <- function(input, output, session) {
           xanchor = "center"  # Ensure title is centered
         ),
         xaxis = list(
-          title = "Year",
+          title = "",
           type = "category",
           #tickangle = -45,
           tickmode = "array",
@@ -1323,14 +1326,14 @@ server <- function(input, output, session) {
           tickfont = list(color = "#FFFFFF")
         ),
         legend = list(
-          orientation = "h",
+          orientation = "v",
           x = 0.5,
           xanchor = "center",
           y = -0.3,
           yanchor = "top",
           itemwidth = 60,
           font = list(color = "#FFFFFF"),
-          traceorder = "normal"  # Ensures the order follows the factor levels
+          traceorder = "reversed"  # Ensures the order follows the factor levels
         ),
         plot_bgcolor = "#222222",
         paper_bgcolor = "#222222",
@@ -1498,7 +1501,7 @@ server <- function(input, output, session) {
           xanchor = "center"  # Ensure title is centered
         ),
         xaxis = list(
-          title = "Year",
+          title = "",
           type = "category",
           #tickangle = -45,
           tickmode = "array",
@@ -1518,14 +1521,14 @@ server <- function(input, output, session) {
           tickfont = list(color = "#FFFFFF")
         ),
         legend = list(
-          orientation = "h",
+          orientation = "v",
           x = 0.5,
           xanchor = "center",
           y = -0.3,
           yanchor = "top",
           itemwidth = 60,
           font = list(color = "#FFFFFF"),
-          traceorder = "normal"  # Ensures the order follows the factor levels
+          traceorder = "reversed"  # Ensures the order follows the factor levels
         ),
         plot_bgcolor = "#222222",
         paper_bgcolor = "#222222",
