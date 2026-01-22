@@ -98,284 +98,309 @@ my_theme <- bs_theme(
 # UI --------------------------------------------
 
 ui <- page_navbar(
-  id = "navbar_id",
-  theme = my_theme,
-  includeCSS("www/style.css"),
-  #title = "",
-  window_title = "Machine Learning Human Footprint Index",
-  bg = "#00bc8c",
-  nav_panel(title = "Home",
+    id = "navbar_id",
+    title = "Machine Learning Human Footprint Index",
+    theme = my_theme,
+    includeCSS("www/style.css"),
+    navbar_options = navbar_options(bg = "#00bc8c"),
+    
+    nav_panel(
+      title = "Home",
+      div(
+        class = "container py-4",
+        style = "max-width: 1200px;",
+        
+        # Header with title and description
+        div(
+          class = "p-4 mb-4 rounded-3 text-center",
+          style = "background-color: #212426;",
+          h1("Machine Learning Human Footprint Index (mlHFI)", style = "color: #00bc8c;"),
+          p(
+            class = "lead",
+            "Explore global human impact on the environment through interactive visualization tools and data resources"
+          ),
+          p(
+            "The mlHFI quantifies human influence on the Earth's land surface  using a convolutional neural network (CNN)
+                  trained on an existing Human Footprint Index (HFI) dataset, with Landsat imagery as input features.
+                  The ml-HFI ranges from 0 to 100, where 0 represents intact natural areas and higher values indicate
+                  increasing human pressure. Global annual data is available at 300m resolution from 1999-2024."
+          )
+        ),
+        # publication announcement
+        div(
+          class = "d-flex justify-content-center mb-4",
+          div(
+            class = "card mb-4",
+            style = "background-color: rgba(0, 188, 140, 0.15); border: 2px solid rgba(0, 188, 140, 0.3); box-shadow: 0 4px 6px rgba(0, 188, 140, 0.1); max-width: 800px;",
             div(
-              class = "container py-4",
-              style = "max-width: 1200px;",
-              
-              # Header with title and description
-              div(
-                class = "p-4 mb-4 rounded-3 text-center",
-                style = "background-color: #212426;",
-                h1("Machine Learning Human Footprint Index (mlHFI)", style = "color: #00bc8c;"),
-                p(class = "lead", "Explore global human impact on the environment through interactive visualization tools and data resources"),
-                p("The mlHFI quantifies human influence on the Earth's land surface  using a convolutional neural network (CNN) 
-                  trained on an existing Human Footprint Index (HFI) dataset, with Landsat imagery as input features. 
-                  The ml-HFI ranges from 0 to 100, where 0 represents intact natural areas and higher values indicate 
-                  increasing human pressure. Global annual data is available at 300m resolution from 1999-2024.")
-              ),
-              
-              # Cards section
-              # First row - Interactive Data Explorer (full width)
-              div(
-                class = "row mb-4",
-                div(
-                  class = "col-12",
-                  div(
-                    class = "card",
-                    style = "background-color: #121314; border-color: #FFF;",
-                    div(
-                      class = "card-body text-center",
-                      h3(class = "card-title", "Interactive Data Explorer"),
-                      p(class = "card-text", "Explore the global mlHFI through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."),
-                      div(
-                        class = "pt-3",
-                        actionButton(
-                          "go_to_explorer", 
-                          "Launch Explorer", 
-                          icon = icon("globe"), 
-                          class = "btn btn-info btn-lg px-5"
-                        )
-                      )
-                    )
-                  )
+              class = "card-body text-center py-3",
+              h5(class = "card-title mb-2", style = "color: #00bc8c;", "📄 New Publication"),
+              p(
+                class = "card-text mb-3",
+                style = "font-size: 0.95rem;",
+                tags$span(
+                  "This work was recently published in",
+                  tags$em("Machine Learning: Earth"),
+                  "titled 'Uncovering patterns of converging human-induced pressure on global lands'. Click
+                  the link below to read more on the methods and findings related to this dataset."
                 )
               ),
-              
-              # Second row - Two other cards
-              div(
-                class = "row row-cols-1 row-cols-md-2 g-4",
-                
-                # Card 2: Google Earth Engine
-                div(
-                  class = "col",
-                  div(
-                    class = "card h-100",
-                    style = "background-color: #121314; border-color: #FFF;",
-                    div(
-                      class = "card-body d-flex flex-column",
-                      h3(class = "card-title", "Google Earth Engine"),
-                      p(class = "card-text", "Access the mlHFI dataset through Google Earth Engine for advanced geospatial analysis and integration with other environmental datasets."),
-                      div(
-                        class = "mt-auto pt-3",
-                        actionButton(
-                          "go_to_gee", 
-                          "Access Earth Engine", 
-                          icon = icon("map"), 
-                          class = "btn btn-warning w-100"
-                          #onclick = "window.open('https://code.earthengine.google.com/f46e81f6ada4c8608b963e6d255efd87', '_blank')"
-                        )
-                      )
-                    )
-                  )
-                ),
-                
-                # # Card 3: REST URL Access
-                # div(
-                #   class = "col",
-                #   div(
-                #     class = "card h-100",
-                #     style = "background-color: #121314; border-color: #FFF;",
-                #     div(
-                #       class = "card-body d-flex flex-column",
-                #       h3(class = "card-title", "API Access"),
-                #       p(class = "card-text", "Integrate mlHFI data into your applications and workflows with our public REST URL endpoints."),
-                #       div(
-                #         class = "mt-auto pt-3",
-                #         actionButton(
-                #           "go_to_api", 
-                #           "Access APIs", 
-                #           icon = icon("code"), 
-                #           class = "btn btn-secondary w-100"
-                #           #onclick = "window.open('https://developers.google.com/earth-engine/datasets/catalog', '_blank')"
-                #         )
-                #       )
-                #     )
-                #   )
-                # ),
-                
-                # Card 3: Raw Data Download
-                div(
-                  class = "col",
-                  div(
-                    class = "card h-100",
-                    style = "background-color: #121314; border-color: #FFF;",
-                    div(
-                      class = "card-body d-flex flex-column",
-                      h3(class = "card-title", "Raw Data Download"),
-                      p(class = "card-text", "Download the complete mlHFI dataset for use in your own GIS software or analysis."),
-                      div(
-                        class = "mt-auto pt-3",
-                        actionButton(
-                          "go_to_download", 
-                          "Download Data", 
-                          icon = icon("download"), 
-                          class = "btn btn-success w-100"
-                          #onclick = "window.open('https://mountainscholar.org/home', '_blank')"
-                        )
-                      )
-                    )
-                  )
-                )
-              )),
-            div(
-              class = "pt-1 mt-1 text-center",
-              p("Copyright © 2025 Machine Learning Human Footprint Index Project", style = "color: #999;"),
-              p("Please cite: [Citation placeholder]", style = "color: #999;")
+              actionButton(
+                "go_to_pub",
+                "View Publication",
+                icon = icon("globe"),
+                class = "btn btn-info btn-sm",
+                onclick = "window.open('https://iopscience.iop.org/article/10.1088/3049-4753/ae2278', '_blank')"
+              )
             )
-            ),
-  ### Data Explorer ----------------------------------
-  nav_panel(
-    title = "Data Explorer",
-    page_sidebar(
-    sidebar = sidebar(
-      radioGroupButtons(
-        "map_type",
-        choices = c("Annual Map", "Change Map"),
-        selected = "Annual Map"
-      ),
-      conditionalPanel("input.map_type == 'Annual Map'",
-                       
-      sliderTextInput(
-        inputId = "year",
-        label = "Select Year:",
-        choices = 1999:2024,
-        selected = 1999,
-        grid = TRUE
-      )),
-      conditionalPanel("input.map_type == 'Change Map'",
-                       em("Change map was calculated as:"),
-                       em("(mean of 2022, 2023, 2024) - (mean of 1999, 2000, 2001)."),
-                       em("Only changes greater than 10 and less than -10 are shown.")),
-      checkboxGroupInput("map_layers", "Add Map Layers:",
-                         choices = list("Country Boundaries" = "countries",
-                                        "IPCC Boundaries" = "ipcc"),
-                         selected = NULL
-      ),
-      ## Regional summaries ------------------
-      accordion(
-        open = FALSE,
-        accordion_panel(
-          "Regional Summaries",
-          radioGroupButtons(
-            "level",
-            "Summarize By:",
-            choices = c("Country", "IPCC Region"),
-            selected = "Country"
-          ),
-          # Reset view button
-          actionButton(
-            "reset_view",
-            "Reset Map View",
-            icon = icon("globe"),
-            class = "btn-primary btn-sm",
-            style = "margin-top: 10px; width: 100%;"
-          ),
-          conditionalPanel(
-            "input.level == 'Country'",
-            materialSwitch("add_country", "Add Layer to Map:", value = FALSE),
-            selectizeInput(
-              "country",
-              "Select Country",
-              choices = unique(countries$name),
-              options = list(
-                placeholder = 'Please select an option below',
-                onInitialize = I('function() { this.setValue(""); }')
-              )
-            ),
-            # plotlyOutput("country_histogram", height = "600px")
-          ),
-          conditionalPanel(
-            "input.level == 'IPCC Region'",
-            materialSwitch("add_ipcc", "Add Layer to Map:", value = FALSE),
-            selectizeInput(
-              "ipcc",
-              "Select IPCC Region",
-              choices = unique(ipcc$NAME),
-              options = list(
-                placeholder = 'Please select an option below',
-                onInitialize = I('function() { this.setValue(""); }')
-              )
-            ),
-            # plotlyOutput("ipcc_histogram", height = "600px")
-          ),
-          ### Tabset viz panel ----------------
-          tabsetPanel(
-            id = "viz_tabs",
-            type = "pills",
-            tabPanel(
-              "Distribution",
-              div(style = "padding-top: 10px;"),
-              conditionalPanel(
-                "input.level == 'Country'",
-                plotlyOutput("country_heatmap", height = "350px")
+          )
+        ),
+        
+        
+        # Cards section
+        # First row - Interactive Data Explorer (full width)
+        div(class = "row mb-4", div(
+          class = "col-12",
+          div(
+            class = "card",
+            style = "background-color: #121314; border-color: #FFF;",
+            div(
+              class = "card-body text-center",
+              h3(class = "card-title", "Interactive Data Explorer"),
+              p(
+                class = "card-text",
+                "Explore the global mlHFI through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."
               ),
-              conditionalPanel(
-                "input.level == 'IPCC Region'",
-                plotlyOutput("ipcc_heatmap", height = "350px")
-              )
-            ),
-            tabPanel(
-              "Similarity",
-              div(style = "padding-top: 10px;"),
-              conditionalPanel(
-                "input.level == 'Country'",
-                plotlyOutput("country_similar", height = "350px")
-              ),
-              conditionalPanel(
-                "input.level == 'IPCC Region'",
-                plotlyOutput("ipcc_similar", height = "300px")
-              )
-            ),
-            tabPanel(
-              "Time Series",
-              div(style = "padding-top: 10px;"),
-              conditionalPanel(
-                "input.level == 'Country' && input.country != ''",
-                plotlyOutput("country_time_series", height = "350px"),
-                hr(),
-                plotlyOutput("country_time_props", height = "350px"),
-                hr(),
-                plotlyOutput("country_time_ridgeline", height = "350px")
-              ),
-              conditionalPanel(
-                "input.level == 'IPCC Region' && input.ipcc != ''",
-                plotlyOutput("ipcc_time_series", height = "350px"),
-                hr(),
-                plotlyOutput("ipcc_time_props", height = "350px"),
-                hr(),
-                plotlyOutput("ipcc_time_ridgeline", height = "350px")
-              ),
-              conditionalPanel(
-                "(input.level == 'Country' && input.country == '') || (input.level == 'IPCC Region' && input.ipcc == '')",
-                div(
-                  style = "text-align: center; padding: 50px 20px;",
-                  icon("exclamation-circle", style = "font-size: 30px; color: #BC0032;"),
-                  h5("Please select a region to view time series data")
+              div(
+                class = "pt-3",
+                actionButton(
+                  "go_to_explorer",
+                  "Launch Explorer",
+                  icon = icon("globe"),
+                  class = "btn btn-info btn-lg px-5"
                 )
               )
             )
           )
+        )),
+        
+        # Second row - Two other cards
+        div(
+          class = "row row-cols-1 row-cols-md-2 g-4",
+          
+          # Card 2: Google Earth Engine
+          div(
+            class = "col",
+            div(
+              class = "card h-100",
+              style = "background-color: #121314; border-color: #FFF;",
+              div(
+                class = "card-body d-flex flex-column",
+                h3(class = "card-title", "Google Earth Engine"),
+                p(
+                  class = "card-text",
+                  "Access the mlHFI dataset through Google Earth Engine for advanced geospatial analysis and integration with other environmental datasets."
+                ),
+                div(
+                  class = "mt-auto pt-3",
+                  actionButton(
+                    "go_to_gee",
+                    "Access Earth Engine",
+                    icon = icon("map"),
+                    class = "btn btn-warning w-100"
+                    #onclick = "window.open('https://code.earthengine.google.com/f46e81f6ada4c8608b963e6d255efd87', '_blank')"
+                  )
+                )
+              )
+            )
+          ),
+          
+          
+          # Card 3: Raw Data Download
+          div(
+            class = "col",
+            div(
+              class = "card h-100",
+              style = "background-color: #121314; border-color: #FFF;",
+              div(
+                class = "card-body d-flex flex-column",
+                h3(class = "card-title", "Raw Data Download"),
+                p(
+                  class = "card-text",
+                  "Download the complete mlHFI dataset for use in your own GIS software or analysis."
+                ),
+                div(
+                  class = "mt-auto pt-3",
+                  actionButton(
+                    "go_to_download",
+                    "Download Data",
+                    icon = icon("download"),
+                    class = "btn btn-success w-100",
+                    onclick = "window.open('https://doi.org/10.5061/dryad.m63xsj4fk', '_blank')"
+                  )
+                )
+              )
+            )
+          )
+        ),
+        div(
+          class = "pt-1 mt-1 text-center",
+          p("Copyright © 2025 Machine Learning Human Footprint Index Project", style = "color: #999;"),
+          p("Please cite: [Citation placeholder]", style = "color: #999;")
         )
-      ),
-      ### Global mean
-      card(
-        full_screen = TRUE,
-        card_header("Mean Annual Change"),
-        plotlyOutput("timeSeries", height = "300px")
-      ),
-      width = "500px"
+      )
     ),
-    
-    ## Map content
-    leafletOutput("map", height = "100%")
-  )),
+    ### Data Explorer ----------------------------------
+    nav_panel(title = "Data Explorer", page_sidebar(
+     # fillable = FALSE,
+      sidebar = sidebar(
+        radioGroupButtons(
+          "map_type",
+          choices = c("Annual Map", "Change Map"),
+          selected = "Annual Map"
+        ),
+        conditionalPanel(
+          "input.map_type == 'Annual Map'",
+          
+          sliderTextInput(
+            inputId = "year",
+            label = "Select Year:",
+            choices = 1999:2024,
+            selected = 1999,
+            grid = TRUE
+          )
+        ),
+        conditionalPanel(
+          "input.map_type == 'Change Map'",
+          em("Change map was calculated as:"),
+          em("(mean of 2022, 2023, 2024) - (mean of 1999, 2000, 2001)."),
+          em("Only changes greater than 10 and less than -10 are shown.")
+        ),
+        checkboxGroupInput(
+          "map_layers",
+          "Add Map Layers:",
+          choices = list("Country Boundaries" = "countries", "IPCC Boundaries" = "ipcc"),
+          selected = NULL
+        ),
+        ## Regional summaries ------------------
+        accordion(
+          open = FALSE,
+          accordion_panel(
+            "Regional Summaries",
+            radioGroupButtons(
+              "level",
+              "Summarize By:",
+              choices = c("Country", "IPCC Region"),
+              selected = "Country"
+            ),
+            # Reset view button
+            actionButton(
+              "reset_view",
+              "Reset Map View",
+              icon = icon("globe"),
+              class = "btn-primary btn-sm",
+              style = "margin-top: 10px; width: 100%;"
+            ),
+            conditionalPanel(
+              "input.level == 'Country'",
+              materialSwitch("add_country", "Add Layer to Map:", value = FALSE),
+              selectizeInput(
+                "country",
+                "Select Country",
+                choices = unique(countries$name),
+                options = list(
+                  placeholder = 'Please select an option below',
+                  onInitialize = I('function() { this.setValue(""); }')
+                )
+              ),
+              # plotlyOutput("country_histogram", height = "600px")
+            ),
+            conditionalPanel(
+              "input.level == 'IPCC Region'",
+              materialSwitch("add_ipcc", "Add Layer to Map:", value = FALSE),
+              selectizeInput(
+                "ipcc",
+                "Select IPCC Region",
+                choices = unique(ipcc$NAME),
+                options = list(
+                  placeholder = 'Please select an option below',
+                  onInitialize = I('function() { this.setValue(""); }')
+                )
+              ),
+              # plotlyOutput("ipcc_histogram", height = "600px")
+            ),
+            ### Tabset viz panel ----------------
+            tabsetPanel(
+              id = "viz_tabs",
+              type = "pills",
+              tabPanel(
+                "Distribution",
+                div(style = "padding-top: 10px;"),
+                conditionalPanel(
+                  "input.level == 'Country'",
+                  plotlyOutput("country_heatmap", height = "350px")
+                ),
+                conditionalPanel(
+                  "input.level == 'IPCC Region'",
+                  plotlyOutput("ipcc_heatmap", height = "350px")
+                )
+              ),
+              tabPanel(
+                "Similarity",
+                div(style = "padding-top: 10px;"),
+                conditionalPanel(
+                  "input.level == 'Country'",
+                  plotlyOutput("country_similar", height = "350px")
+                ),
+                conditionalPanel(
+                  "input.level == 'IPCC Region'",
+                  plotlyOutput("ipcc_similar", height = "300px")
+                )
+              ),
+              tabPanel(
+                "Time Series",
+                div(style = "padding-top: 10px;"),
+                conditionalPanel(
+                  "input.level == 'Country' && input.country != ''",
+                  plotlyOutput("country_time_series", height = "350px"),
+                  hr(),
+                  plotlyOutput("country_time_props", height = "350px"),
+                  hr(),
+                  plotlyOutput("country_time_ridgeline", height = "350px")
+                ),
+                conditionalPanel(
+                  "input.level == 'IPCC Region' && input.ipcc != ''",
+                  plotlyOutput("ipcc_time_series", height = "350px"),
+                  hr(),
+                  plotlyOutput("ipcc_time_props", height = "350px"),
+                  hr(),
+                  plotlyOutput("ipcc_time_ridgeline", height = "350px")
+                ),
+                conditionalPanel(
+                  "(input.level == 'Country' && input.country == '') || (input.level == 'IPCC Region' && input.ipcc == '')",
+                  div(
+                    style = "text-align: center; padding: 50px 20px;",
+                    icon("exclamation-circle", style = "font-size: 30px; color: #BC0032;"),
+                    h5("Please select a region to view time series data")
+                  )
+                )
+              )
+            )
+          )
+        ),
+        ### Global mean
+        card(
+          full_screen = TRUE,
+          card_header("Mean Annual Change"),
+          plotlyOutput("timeSeries", height = "300px")
+        ),
+        width = "500px"
+      ),
+      
+      ## Map content
+      leafletOutput("map", height = "100%") #"100%"
+    )),
+   
 )
 
 # SERVER ------------------------------------------
