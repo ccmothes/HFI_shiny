@@ -88,11 +88,11 @@ my_theme <- bs_theme(
   bg = "#222222",
   fg = "#FFFFFF",
   primary = "#00bc8c",
-  secondary = "#BC0032",
-  info = "#3A86FF",           
-  warning = "#F6AD55",       
+  secondary = "#fcffa4", #"#BC0032",
+  info = "#4a0c6b",  # "#3A86FF",           
+  warning =  "#a52c60", # "#F6AD55",       
   danger = "#7B0828",        
-  success = "#8A6FDF"   
+  success = "#ed6925" # "#8A6FDF"   
 )
 
 # UI --------------------------------------------
@@ -114,24 +114,24 @@ ui <- page_navbar(
         div(
           class = "p-4 mb-4 rounded-3 text-center",
           style = "background-color: #212426;",
-          h1("Machine Learning Human Footprint Index (mlHFI)", style = "color: #00bc8c;"),
+          h1("Machine Learning Human Footprint Index (ml-HFI)", style = "color: #00bc8c;"),
           p(
             class = "lead",
             "Explore global human impact on the environment through interactive visualization tools and data resources"
           ),
           p(
-            "The mlHFI quantifies human influence on the Earth's land surface  using a convolutional neural network (CNN)
+            "The ml-HFI quantifies human influence on the Earth's land surface  using a convolutional neural network (CNN)
                   trained on an existing Human Footprint Index (HFI) dataset, with Landsat imagery as input features.
                   The ml-HFI ranges from 0 to 100, where 0 represents intact natural areas and higher values indicate
                   increasing human pressure. Global annual data is available at 300m resolution from 1999-2024."
           )
         ),
-        # publication announcement
+        # Publication Announcement
         div(
           class = "d-flex justify-content-center mb-4",
           div(
             class = "card mb-4",
-            style = "background-color: rgba(0, 188, 140, 0.15); border: 2px solid rgba(0, 188, 140, 0.3); box-shadow: 0 4px 6px rgba(0, 188, 140, 0.1); max-width: 800px;",
+            style = "background-color: #121314; border: 2px solid rgba(0, 188, 140, 0.3); box-shadow: 0 4px 6px rgba(0, 188, 140, 0.1); max-width: 800px;",
             div(
               class = "card-body text-center py-3",
               h5(class = "card-title mb-2", style = "color: #00bc8c;", "📄 New Publication"),
@@ -148,8 +148,8 @@ ui <- page_navbar(
               actionButton(
                 "go_to_pub",
                 "View Publication",
-                icon = icon("globe"),
-                class = "btn btn-info btn-sm",
+                icon = icon("book-open"),
+                class = "btn btn-primary w-50",
                 onclick = "window.open('https://iopscience.iop.org/article/10.1088/3049-4753/ae2278', '_blank')"
               )
             )
@@ -169,7 +169,13 @@ ui <- page_navbar(
               h3(class = "card-title", "Interactive Data Explorer"),
               p(
                 class = "card-text",
-                "Explore the global mlHFI through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."
+                "Explore the global ml-HFI through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."
+              ),
+              # Add image here as icon
+              tags$img(
+                src = "map_view.png",
+                alt = "Interactive Map Preview",
+                style = "width: 500px; height: auto; margin: 15px 0; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);"
               ),
               div(
                 class = "pt-3",
@@ -199,7 +205,7 @@ ui <- page_navbar(
                 h3(class = "card-title", "Google Earth Engine"),
                 p(
                   class = "card-text",
-                  "Access the mlHFI dataset through Google Earth Engine for advanced geospatial analysis and integration with other environmental datasets."
+                  "Access the ml-HFI dataset through Google Earth Engine for advanced geospatial analysis and integration with other environmental datasets."
                 ),
                 div(
                   class = "mt-auto pt-3",
@@ -227,7 +233,7 @@ ui <- page_navbar(
                 h3(class = "card-title", "Raw Data Download"),
                 p(
                   class = "card-text",
-                  "Download the complete mlHFI dataset for use in your own GIS software or analysis."
+                  "Download the complete ml-HFI dataset for use in your own GIS software or analysis."
                 ),
                 div(
                   class = "mt-auto pt-3",
@@ -243,10 +249,46 @@ ui <- page_navbar(
             )
           )
         ),
+        hr(),
         div(
-          class = "pt-1 mt-1 text-center",
-          p("Copyright © 2025 Machine Learning Human Footprint Index Project", style = "color: #999;"),
-          p("Please cite: [Citation placeholder]", style = "color: #999;")
+          class = "pt-4 mt-4",
+          div(
+            class = "row",
+            # Left column - Logo and developer info
+            div(
+              class = "col-md-6 text-center text-md-start mb-3",
+              p(
+                style = "color: #CCCCCC; margin-bottom: 10px; font-size: 0.85rem;",
+                paste("Application developed by the Geospatial Centroid at CSU. Last Updated", format(Sys.Date(), "%B %Y"))
+              ),
+              tags$img(
+                src = "Centroid_logo.png",
+                alt = "Geospatial Centroid Logo",
+                style = "max-width: 200px; height: auto;"
+              )
+            ),
+            # Right column - Citation and contact
+            div(
+              class = "col-md-6 text-center text-md-start",
+              p(
+                style = "color: #CCCCCC; margin-bottom: 10px; font-size: 0.85rem;",
+                tags$strong("Citation: "),
+                "Orihuela-Pinto, B., Keys, P. W., Davenport, F. V., & Barnes, E. A. (2025). Uncovering patterns of converging human-induced pressure on global lands. ",
+                tags$em("Machine Learning: Earth, 1"),
+                "(1), 01LT03. https://doi.org/10.1088/3049-4753/ae2278"
+              ),
+              p(
+                style = "color: #CCCCCC; font-size: 0.85rem;",
+                tags$strong("Contact: "),
+                "Pat Keys, ",
+                tags$a(
+                  href = "mailto:pkeys@bu.edu",
+                  "pkeys@bu.edu",
+                  style = "color: #00bc8c;"
+                )
+              )
+            )
+          )
         )
       )
     ),
@@ -463,7 +505,7 @@ server <- function(input, output, session) {
                   "#cf4446", "#ed6925", "#fb9b06", "#f7d03c", "#fcffa4")
       values <- seq(0, 94, length.out = 10)
       
-      title <- "mlHFI"
+      title <- "ml-HFI"
       
       lab_format <- function(x) {
         prettyNum(x, format = "f", big.mark = ",", digits =
@@ -482,7 +524,7 @@ server <- function(input, output, session) {
         
         values <- c(-41,41)
         
-        title <- "Change in mlHFI"
+        title <- "Change in ml-HFI"
         
         # Edit labels
         customLabFormat <- function(x) {
