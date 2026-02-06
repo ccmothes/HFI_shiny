@@ -99,7 +99,7 @@ my_theme <- bs_theme(
 
 ui <- page_navbar(
     id = "navbar_id",
-    title = "Machine Learning Human Footprint Index",
+    title = "Machine Learning Human Footprint Index (ml-HFI)",
     theme = my_theme,
     includeCSS("www/style.css"),
     navbar_options = navbar_options(bg = "#00bc8c"),
@@ -107,56 +107,29 @@ ui <- page_navbar(
     nav_panel(
       title = "Home",
       div(
-        class = "container py-4",
+        class = "container py-2",
         style = "max-width: 1200px;",
         
         # Header with title and description
         div(
-          class = "p-4 mb-4 rounded-3 text-center",
-          style = "background-color: #212426;",
-          h1("Machine Learning Human Footprint Index (ml-HFI)", style = "color: #00bc8c;"),
-          p(
-            class = "lead",
+          class = "p-3 mb-3 rounded-3 text-center",
+          style = "background-color: rgba(33, 36, 38, 0.5);",
+          #h2("Machine Learning Human Footprint Index (ml-HFI)", style = "color: #00bc8c;"),
+          h4(
+            style = "color:#00bc8c; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);",
             "Explore global human impact on the environment through interactive visualization tools and data resources"
           ),
+          hr(),
+          
           p(
+            style = "font-size: 0.9rem;",
             "The ml-HFI quantifies human influence on the Earth's land surface  using a convolutional neural network (CNN)
                   trained on an existing Human Footprint Index (HFI) dataset, with Landsat imagery as input features.
                   The ml-HFI ranges from 0 to 100, where 0 represents intact natural areas and higher values indicate
                   increasing human pressure. Global annual data is available at 300m resolution from 1999-2024."
           )
         ),
-        # Publication Announcement
-        div(
-          class = "d-flex justify-content-center mb-4",
-          div(
-            class = "card mb-4",
-            style = "background-color: #121314; border: 2px solid rgba(0, 188, 140, 0.3); box-shadow: 0 4px 6px rgba(0, 188, 140, 0.1); max-width: 800px;",
-            div(
-              class = "card-body text-center py-3",
-              h5(class = "card-title mb-2", style = "color: #00bc8c;", "📄 New Publication"),
-              p(
-                class = "card-text mb-3",
-                style = "font-size: 0.95rem;",
-                tags$span(
-                  "This work was recently published in",
-                  tags$em("Machine Learning: Earth"),
-                  "titled 'Uncovering patterns of converging human-induced pressure on global lands'. Click
-                  the link below to read more on the methods and findings related to this dataset."
-                )
-              ),
-              actionButton(
-                "go_to_pub",
-                "View Publication",
-                icon = icon("book-open"),
-                class = "btn btn-primary w-50",
-                onclick = "window.open('https://iopscience.iop.org/article/10.1088/3049-4753/ae2278', '_blank')"
-              )
-            )
-          )
-        ),
-        
-        
+       
         # Cards section
         # First row - Interactive Data Explorer (full width)
         div(class = "row mb-4", div(
@@ -165,32 +138,73 @@ ui <- page_navbar(
             class = "card",
             style = "background-color: #121314; border-color: #FFF;",
             div(
-              class = "card-body text-center",
-              h3(class = "card-title", "Interactive Data Explorer"),
-              p(
-                class = "card-text",
-                "Explore the global ml-HFI through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."
-              ),
-              # Add image here as icon
-              tags$img(
-                src = "map_view.png",
-                alt = "Interactive Map Preview",
-                style = "width: 500px; height: auto; margin: 15px 0; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);"
-              ),
+              class = "card-body",
+              #h3(class = "card-title text-center mb-4", "Interactive Data Explorer"),
               div(
-                class = "pt-3",
-                actionButton(
-                  "go_to_explorer",
-                  "Launch Explorer",
-                  icon = icon("globe"),
-                  class = "btn btn-info btn-lg px-5"
+                class = "row align-items-center",
+                # Left column - text and button (1/4 width)
+                div(
+                  class = "col-md-4",
+                  h3(class = "card-title text-center mb-4", "Interactive Data Explorer"),
+                  p(
+                    class = "card-text mb-4",
+                    "Explore the global ml-HFI through an interactive dashboard with regional comparisons, time series analysis, and spatial visualization."
+                  ),
+                  actionButton(
+                    "go_to_explorer",
+                    "Launch Explorer",
+                    icon = icon("globe"),
+                    class = "btn btn-info btn-lg w-100"
+                  )
+                ),
+                # Right column - map image (3/4 width)
+                div(
+                  class = "col-md-8",
+                  tags$img(
+                    src = "map_view.png",
+                    alt = "Interactive Map Preview",
+                    style = "width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);"
+                  )
                 )
               )
             )
           )
         )),
+        # second row, publication notice
+        div(
+          class = "d-flex justify-content-center mb-4",
+          div(
+            class = "card mb-3",
+            style = "background-color: #121314; border: 2px solid rgba(0, 188, 140, 0.3); box-shadow: 0 4px 6px rgba(0, 188, 140, 0.1); max-width: 1500px;",
+            div(
+              class = "card-body text-center py-2",
+              p(
+                class = "mb-0",
+                style = "font-size: 0.9rem;",
+                tags$span(icon("book-open"), style = "color: #00bc8c; margin-right: 8px;"),
+                "This work was recently published in ",
+                tags$em("Machine Learning: Earth"),
+                " titled 'Uncovering patterns of converging human-induced pressure on global lands'. ",
+                tags$a(
+                  "Access the publication here",
+                  href = "https://iopscience.iop.org/article/10.1088/3049-4753/ae2278",
+                  target = "_blank",
+                  style = "color: #00bc8c; text-decoration: underline;"
+                ),
+                "."
+              )
+            )
+          )
+        ),
         
-        # Second row - Two other cards
+        div(
+          class = "text-center mb-3",
+          h3("Data Access", style = "color: #00bc8c;")
+        ),
+        
+        hr(),
+        
+        # Third row - data access
         div(
           class = "row row-cols-1 row-cols-md-2 g-4",
           
@@ -213,8 +227,8 @@ ui <- page_navbar(
                     "go_to_gee",
                     "Access Earth Engine",
                     icon = icon("map"),
-                    class = "btn btn-warning w-100"
-                    #onclick = "window.open('https://code.earthengine.google.com/f46e81f6ada4c8608b963e6d255efd87', '_blank')"
+                    class = "btn btn-warning w-100",
+                    onclick = "window.open('https://code.earthengine.google.com/d50154ebb2309576dc09159ce1f15ef0', '_blank')"
                   )
                 )
               )
@@ -294,7 +308,7 @@ ui <- page_navbar(
     ),
     ### Data Explorer ----------------------------------
     nav_panel(title = "Data Explorer", page_sidebar(
-     # fillable = FALSE,
+     #fillable = FALSE,
       sidebar = sidebar(
         radioGroupButtons(
           "map_type",
@@ -318,6 +332,17 @@ ui <- page_navbar(
           em("(mean of 2022, 2023, 2024) - (mean of 1999, 2000, 2001)."),
           em("Only changes greater than 10 and less than -10 are shown.")
         ),
+        # radioButtons(
+        #   "basemap",
+        #   "Select Basemap:",
+        #   choices = c("Dark" = "dark", "OpenStreetMap" = "osm"),
+        #   selected = "dark"
+        # ),
+        # checkboxInput(
+        #   "show_mlhfi",
+        #   "Show ml-HFI Layer",
+        #   value = TRUE
+        # ),
         checkboxGroupInput(
           "map_layers",
           "Add Map Layers:",
@@ -558,13 +583,37 @@ server <- function(input, output, session) {
   # Map output -------------------------------------
   output$map <- renderLeaflet({
     leaflet() %>%
-      #addProviderTiles("OpenStreetMap") %>%
-      addProviderTiles(providers$CartoDB.DarkMatter) %>%
+      addProviderTiles(providers$CartoDB.DarkMatter, 
+                       group = "Dark",
+                       options = providerTileOptions(zIndex = 1)) %>%
+      addTiles(group = "OpenStreetMap",
+               options = tileOptions(zIndex = 1)) %>%
+      addLayersControl(
+        baseGroups = c("Dark", "OpenStreetMap"),
+        overlayGroups = "ml-HFI",
+        options = layersControlOptions(collapsed = TRUE),
+        position = "topleft"
+      ) %>%
       setView(lng = 0,
               lat = 30,
               zoom = 2)
     
   })
+  
+  # # Observer to change basemap
+  # observe({
+  #   req(input$basemap)
+  #   
+  #   if(input$basemap == "dark") {
+  #     leafletProxy("map") %>%
+  #       showGroup("Dark") %>%
+  #       hideGroup("OpenStreetMap")
+  #   } else {
+  #     leafletProxy("map") %>%
+  #       hideGroup("Dark") %>%
+  #       showGroup("OpenStreetMap")
+  #   }
+  # })
   
   # this makes it so the proxy map is rendered in the background, otherwise the map is empty when you first navigate to this page
   outputOptions(output, "map", suspendWhenHidden = FALSE)
@@ -614,18 +663,18 @@ server <- function(input, output, session) {
     # # Add base tile layer if a URL is provided
     if (!is.null(url())) {
       map_proxy %>%
-        clearGroup("hfi") %>% 
+        clearGroup("ml-HFI") %>% 
         clearControls() %>% 
         addTiles(url(),
-                 group = "hfi",
-                 options = tileOptions(maxNativeZoom = 12)) %>% 
+                 group = "ml-HFI",
+                 options = tileOptions(maxNativeZoom = 12, zIndex = 500)) %>% 
         addLegendNumeric(
           position = "bottomright",
           pal = map_legend()[["pal"]],
           values = map_legend()[["values"]],
           title = map_legend()[["title"]],
           numberFormat = map_legend()[["num_format"]],
-          group = "hfi",
+          group = "ml-HFI",
           height = 150,
           decreasing = TRUE
         )
@@ -688,40 +737,40 @@ server <- function(input, output, session) {
     # Add or remove Country layer
     if (input$add_country) {
       #withProgress({
-        # #Sys.sleep(5)  # Simulate loading time
-        # 
-        # # Simulate steps in data loading
-        # for (i in 1:5) {
-        #   incProgress(1 / 5, message = "Loading shapefile...")
-        #   Sys.sleep(0.5)  # Simulate work
-        # }
-        
-        map_proxy %>%
-          addPolygons(
-            data = countries,
-            fillColor = ~ country_pal()(get(paste0("mlHFI_", input$year))),
-            fillOpacity = 0.95,
-            weight = 0.5,
-            color = "#444444",
-            group = "Countries",
-            popup = ~ paste(
-              "<strong>",
-              name,
-              "</strong>",
-              "<br>",
-              paste(input$year, "Mean HFI:"),
-              round(get(paste0("mlHFI_",
-                input$year
-              )), 2)
-            )
-          ) %>%
-          addLegend(
-            position = "bottomright",
-            pal = country_pal(),
-            values = countries[[paste0("mlHFI_", input$year)]],
-            title = "Average HFI by Country",
-            group = "Countries"
+      # #Sys.sleep(5)  # Simulate loading time
+      # 
+      # # Simulate steps in data loading
+      # for (i in 1:5) {
+      #   incProgress(1 / 5, message = "Loading shapefile...")
+      #   Sys.sleep(0.5)  # Simulate work
+      # }
+      
+      map_proxy %>%
+        addPolygons(
+          data = countries,
+          fillColor = ~ country_pal()(get(paste0("mlHFI_", input$year))),
+          fillOpacity = 0.95,
+          weight = 0.5,
+          color = "#444444",
+          group = "Countries",
+          popup = ~ paste(
+            "<strong>",
+            name,
+            "</strong>",
+            "<br>",
+            paste(input$year, "Mean HFI:"),
+            round(get(paste0("mlHFI_",
+                             input$year
+            )), 2)
           )
+        ) %>%
+        addLegend(
+          position = "bottomright",
+          pal = country_pal(),
+          values = countries[[paste0("mlHFI_", input$year)]],
+          title = "Average HFI by Country",
+          group = "Countries"
+        )
       # })
     } else {
       # Clear group and control
@@ -735,7 +784,7 @@ server <- function(input, output, session) {
         addPolygons(
           data = ipcc,
           fillColor = ~ ipcc_pal()(get(paste0("mlHFI_",
-            input$year
+                                              input$year
           ))),
           fillOpacity = 0.85,
           weight = 0.5,
@@ -748,7 +797,7 @@ server <- function(input, output, session) {
             "<br>",
             paste(input$year, "Mean HFI:"),
             round(get(paste0("mlHFI_",
-              input$year
+                             input$year
             )), 2)
           )
         ) %>%
@@ -767,6 +816,7 @@ server <- function(input, output, session) {
     
     
   })
+  
   
   
   
