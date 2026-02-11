@@ -136,7 +136,7 @@ ui <- page_navbar(
           class = "col-12",
           div(
             class = "card",
-            style = "background-color: #121314; border-color: #FFF;",
+            style = "background-color: #121314;",
             div(
               class = "card-body",
               #h3(class = "card-title text-center mb-4", "Interactive Data Explorer"),
@@ -175,7 +175,7 @@ ui <- page_navbar(
           class = "d-flex justify-content-center mb-4",
           div(
             class = "card mb-3",
-            style = "background-color: #121314; border: 2px solid rgba(0, 188, 140, 0.3); box-shadow: 0 4px 6px rgba(0, 188, 140, 0.1); max-width: 1500px;",
+            style = "background-color: #121314; border: 2px solid rgba(0, 188, 140, 0.3); max-width: 1500px;",
             div(
               class = "card-body text-center py-2",
               p(
@@ -213,7 +213,7 @@ ui <- page_navbar(
             class = "col",
             div(
               class = "card h-100",
-              style = "background-color: #121314; border-color: #FFF;",
+              style = "background-color: #121314;",
               div(
                 class = "card-body d-flex flex-column",
                 h3(class = "card-title", "Google Earth Engine"),
@@ -241,7 +241,7 @@ ui <- page_navbar(
             class = "col",
             div(
               class = "card h-100",
-              style = "background-color: #121314; border-color: #FFF;",
+              style = "background-color: #121314;",
               div(
                 class = "card-body d-flex flex-column",
                 h3(class = "card-title", "Raw Data Download"),
