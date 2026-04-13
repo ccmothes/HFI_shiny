@@ -10,19 +10,19 @@ Local data/ folder
 
 ```{r}
 #hfi_1999 <- terra::rast("data/1999_int16.tif")
-rasters <- list.files("data/", pattern = ".tif$", full.names = TRUE)
+rasters <- list.files("data/final_data/", pattern = ".tif$", full.names = TRUE)
 
 # annual and change rasters
 
 change <- terra::rast(rasters[str_detect(rasters, "diff_")])
 
-annual <- map(rasters[str_detect(rasters, "exp318_")], terra::rast)
+annual <- map(rasters[str_detect(rasters, "mosaic")], terra::rast)
 ```
 
 Get file names to use later on
 
 ```{r}
-annual_names <- map(rasters[str_detect(rasters, "exp318_")], ~str_extract(.x, "(?<=_)\\d{4}(?=_)"))
+annual_names <- map(rasters[str_detect(rasters, "mosaic")], ~str_extract(.x, "(?<=_)\\d{4}(?=_)"))
 ```
 
 Match extents
@@ -138,7 +138,7 @@ plot_na_map()
 
 Read in rasters
 ```{r}
-rasters <- terra::rast("data/cleaned_rasters.tif")
+rasters <- terra::rast("data/cleaned_rasters_2025-12-05.tif")
 ```
 
 
@@ -213,7 +213,7 @@ leaflet() %>%
 
 Read in aligned rasters
 ```{r}
-rasters <- rast("data/cleaned_rasters_2025-07-09.tif")
+rasters <- rast("data/cleaned_rasters_2025-12-05.tif")
 ```
 
 
@@ -321,7 +321,7 @@ end-start #2.405967 secs
 
 ```{r}
 # For a list of already loaded rasters
-years <- 1999:2023
+years <- 1999:2024
 
 # Or for a SpatRaster collection (terra's equivalent of a stack)
 #raster_collection <- sprc(ms_ts)
@@ -475,7 +475,7 @@ write_csv(freqs, "app/app_data/distribution_timeseries.csv")
 Read in aligned rasters
 
 ```{r}
-rasters <- terra::rast("data/cleaned_rasters_2025-07-09.tif")
+rasters <- terra::rast("data/cleaned_rasters_2025-12-05.tif")
 ```
 
 Create test chunks
@@ -511,9 +511,29 @@ freqs_clean <- freqs_all %>%
   mutate(year = case_when(layer == 1 ~ 1999,
                           layer == 2 ~ 2000,
                           layer == 3 ~ 2001,
-                          layer == 4 ~ 2022,
-                          layer == 5 ~ 2023,
-                          layer == 6 ~ 2024)) %>%
+                          layer == 4 ~ 2002,
+                          layer == 5 ~ 2003,
+                          layer == 6 ~ 2004,
+                          layer == 7 ~ 2005,
+                          layer == 8 ~ 2006,
+                          layer == 9 ~ 2007,
+                          layer == 10 ~ 2008,
+                          layer == 11 ~ 2009,
+                          layer == 12 ~ 2010,
+                          layer == 13 ~ 2011,
+                          layer == 14 ~ 2012,
+                          layer == 15 ~ 2013,
+                          layer == 16 ~ 2014,
+                          layer == 17 ~ 2015,
+                          layer == 18 ~ 2016,
+                          layer == 19 ~ 2017,
+                          layer == 20 ~ 2018,
+                          layer == 21 ~ 2019,
+                          layer == 22 ~ 2020,
+                          layer == 23 ~ 2021,
+                          layer == 24 ~ 2022,
+                          layer == 25 ~ 2023,
+                          layer == 26 ~ 2024)) %>%
   left_join(countries_join, by = "zone") %>%
   select(-c(layer, zone))
 ```
@@ -580,9 +600,29 @@ freqs_ipcc_clean <- freqs_ipcc %>%
   mutate(year = case_when(layer == 1 ~ 1999,
                           layer == 2 ~ 2000,
                           layer == 3 ~ 2001,
-                          layer == 4 ~ 2022,
-                          layer == 5 ~ 2023,
-                          layer == 6 ~ 2024)) %>%
+                          layer == 4 ~ 2002,
+                          layer == 5 ~ 2003,
+                          layer == 6 ~ 2004,
+                          layer == 7 ~ 2005,
+                          layer == 8 ~ 2006,
+                          layer == 9 ~ 2007,
+                          layer == 10 ~ 2008,
+                          layer == 11 ~ 2009,
+                          layer == 12 ~ 2010,
+                          layer == 13 ~ 2011,
+                          layer == 14 ~ 2012,
+                          layer == 15 ~ 2013,
+                          layer == 16 ~ 2014,
+                          layer == 17 ~ 2015,
+                          layer == 18 ~ 2016,
+                          layer == 19 ~ 2017,
+                          layer == 20 ~ 2018,
+                          layer == 21 ~ 2019,
+                          layer == 22 ~ 2020,
+                          layer == 23 ~ 2021,
+                          layer == 24 ~ 2022,
+                          layer == 25 ~ 2023,
+                          layer == 26 ~ 2024)) %>%
   left_join(ipcc_join, by = "zone") %>%
   select(-c(layer, zone))
 ```
