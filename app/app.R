@@ -13,6 +13,9 @@ library(ggplot2)
 library(plotly)
 library(sf)
 
+# carto basemap API key
+#carto_key <- Sys.getenv("CARTO_API_KEY")
+
 # read in vector layers
 ipcc <- read_sf("app_data/IPCC_regions/referenceRegions.shp") %>%
   # clean up names and create shortened title
@@ -581,11 +584,26 @@ server <- function(input, output, session) {
   
   
   # Map output -------------------------------------
+  
+  ## main basemap URL, fallback if API key ever fails (keep in case we ever revert to this)
+  # basemap_url <- if (nzchar(carto_key)) {
+  #   paste0("https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=", carto_key)
+  # } else {
+  #   # keyless fallback so a missing key doesn't show watermarked tiles
+  #   "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+  # }
+  
   output$map <- renderLeaflet({
     leaflet() %>%
-      addProviderTiles(providers$CartoDB.DarkMatter, 
-                       group = "Dark",
-                       options = providerTileOptions(zIndex = 1)) %>%
+      addTiles(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        attribution = "Esri, HERE, Garmin, © OpenStreetMap contributors",
+        options = tileOptions(maxZoom = 16)
+      ) %>%
+      # addTiles(
+      #   urlTemplate = basemap_url,
+      #   attribution = "© OpenStreetMap, © CARTO",
+      #                  options = tileOptions(zIndex = 1, maxZoom = 20)) %>%
       addTiles(group = "OpenStreetMap",
                options = tileOptions(zIndex = 1)) %>%
       addLayersControl(
